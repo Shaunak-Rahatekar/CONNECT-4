@@ -110,6 +110,7 @@ CONNECT-4/
 │       └── dashboard.js    Performance dashboard & Chart.js interactive manager
 └── docs/
     ├── PROJECT_DOCUMENTATION.md  Exhaustive DAA analysis and development log
+    ├── TECHNICAL_REPORT.md       In-depth technical report, math models & future roadmap
     ├── TEST_REPORT.md            Comprehensive testing report (173 tests, audits & benchmarks)
     └── USER_GUIDE.md             Complete user manual & element-by-element UI guide
 ```
@@ -121,6 +122,7 @@ CONNECT-4/
 Full technical documentation, user guides, DAA concept mapping, complexity analysis,
 test reports, and development logs:
 
+📘 [`docs/TECHNICAL_REPORT.md`](docs/TECHNICAL_REPORT.md) — In-Depth Technical Report, Math Models & Future Roadmap  
 📖 [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md) — Complete User Manual, UI Element Guide & Workflows  
 📄 [`docs/PROJECT_DOCUMENTATION.md`](docs/PROJECT_DOCUMENTATION.md) — Exhaustive DAA Analysis and Architecture  
 🧪 [`docs/TEST_REPORT.md`](docs/TEST_REPORT.md) — Comprehensive Test & Evaluation Report (173 Tests, Invariants & Benchmarks)
