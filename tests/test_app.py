@@ -307,5 +307,88 @@ def test_api_mode_switch_transposition_table(client):
     assert data2["use_transposition_table"] is True
 
 
+def test_api_benchmark_positions(client):
+    res = client.get("/api/benchmark/positions")
+    assert res.status_code == 200
+    data = res.get_json()
+    assert data["ok"] is True
+    assert len(data["positions"]) >= 4
+    ids = [p["id"] for p in data["positions"]]
+    assert "opening_center" in ids
+    assert "tactical_block" in ids
+    assert "midgame_complex" in ids
+    assert "symmetric_transposition" in ids
+
+
+def test_api_benchmark_run_preset(client):
+    res = client.post("/api/benchmark/run", json={
+        "position_id": "opening_center",
+        "depth": 2,
+        "repeats": 1
+    })
+    assert res.status_code == 200
+    data = res.get_json()
+    assert data["ok"] is True
+    assert "results" in data
+    assert len(data["results"]) == 4
+    keys = [r["algorithm_key"] for r in data["results"]]
+    assert "minimax" in keys
+    assert "alphabeta_tt" in keys
+
+
+def test_api_benchmark_run_live_board_isolated(client):
+    # Place human disc on col 3
+    client.post("/api/move", json={"col": 3})
+    state_before = client.get("/api/board").get_json()
+    assert state_before["move_count"] == 1
+
+    # Run benchmark on "live" position
+    res = client.post("/api/benchmark/run", json={
+        "position_id": "live",
+        "depth": 2,
+        "repeats": 1
+    })
+    assert res.status_code == 200
+    data = res.get_json()
+    assert data["ok"] is True
+
+    # Confirm live board was not modified by benchmark execution
+    state_after = client.get("/api/board").get_json()
+    assert state_after["move_count"] == 1
+    assert state_after["current_player"] == state_before["current_player"]
+    assert state_after["grid"] == state_before["grid"]
+
+
+def test_api_benchmark_scaling(client):
+    res = client.post("/api/benchmark/scaling", json={
+        "position_id": "opening_center",
+        "max_depth": 2,
+        "repeats": 1
+    })
+    assert res.status_code == 200
+    data = res.get_json()
+    assert data["ok"] is True
+    assert "scaling" in data
+    scaling = data["scaling"]
+    assert scaling["depths"] == [1, 2]
+    assert len(scaling["time_ms"]["minimax"]) == 2
+    assert len(scaling["nodes"]["alphabeta_tt"]) == 2
+    assert len(scaling["cutoffs"]["alphabeta_ordered"]) == 2
+    assert len(scaling["memory_kb"]["alphabeta_tt"]) == 2
+
+
+def test_api_benchmark_invalid_depth_clamped(client):
+    # Depth 99 should clamp or handle safely without failing
+    res = client.post("/api/benchmark/run", json={
+        "position_id": "opening_center",
+        "depth": 99,
+        "repeats": 1
+    })
+    assert res.status_code == 200
+    data = res.get_json()
+    assert data["ok"] is True
+
+
+
 
 

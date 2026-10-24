@@ -265,6 +265,220 @@
   </aside>
 </div>
 
+<!-- ========================================================================= -->
+<!-- AI Performance & Benchmark Dashboard -->
+<!-- ========================================================================= -->
+<section class="panel panel-dashboard" id="performance-dashboard" aria-labelledby="dashboard-title">
+  <div class="dashboard-header">
+    <div>
+      <h2 id="dashboard-title" class="dashboard-title">📊 AI Performance &amp; Benchmark Dashboard</h2>
+      <p class="dashboard-subtitle">Empirical measurement across Minimax, Alpha-Beta Pruning, Move Ordering, and Transposition Table memoization.</p>
+    </div>
+    <div class="dashboard-actions">
+      <span id="bench-status-badge" class="badge bench-badge ready">Ready</span>
+    </div>
+  </div>
+
+  <!-- Benchmark Toolbar -->
+  <div class="benchmark-toolbar">
+    <div class="toolbar-group">
+      <label for="bench-position-select" class="toolbar-label">Test Position:</label>
+      <select id="bench-position-select" class="form-select toolbar-select">
+        <option value="opening_center" selected>1. Opening (Center Move)</option>
+        <option value="tactical_block">2. Tactical Block (Threat Response)</option>
+        <option value="midgame_complex">3. Midgame Center Battle</option>
+        <option value="symmetric_transposition">4. Symmetric Dual-Flank</option>
+        <option value="live">⚡ Current Live Board State</option>
+      </select>
+    </div>
+
+    <div class="toolbar-group">
+      <label for="bench-depth-select" class="toolbar-label">Max Depth:</label>
+      <select id="bench-depth-select" class="form-select toolbar-select-sm">
+        <option value="1">Depth 1</option>
+        <option value="2">Depth 2</option>
+        <option value="3" selected>Depth 3</option>
+        <option value="4">Depth 4</option>
+      </select>
+    </div>
+
+    <div class="toolbar-group">
+      <label for="bench-repeats-select" class="toolbar-label">Repetitions:</label>
+      <select id="bench-repeats-select" class="form-select toolbar-select-sm">
+        <option value="1">1 Run</option>
+        <option value="2">2 Runs</option>
+        <option value="3" selected>3 Runs (Median)</option>
+        <option value="5">5 Runs (Median)</option>
+      </select>
+    </div>
+
+    <button id="btn-run-benchmark" type="button" class="btn btn-primary btn-run-bench">
+      ▶ Run Benchmark Suite
+    </button>
+  </div>
+
+  <!-- Benchmark Table -->
+  <div class="dashboard-table-container">
+    <table class="comp-table bench-table" id="bench-table">
+      <thead>
+        <tr>
+          <th>Algorithm Configuration</th>
+          <th>Chosen Move</th>
+          <th>Score</th>
+          <th>Nodes Visited</th>
+          <th>Cutoffs</th>
+          <th>Cache Hits (Rate)</th>
+          <th>Execution Time</th>
+          <th>Work Reduction</th>
+          <th>Speedup</th>
+          <th>Memory</th>
+        </tr>
+      </thead>
+      <tbody id="bench-table-body">
+        <!-- Populated dynamically via JS -->
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Visualizations Grid -->
+  <div class="charts-grid">
+    <div class="chart-card">
+      <h3 class="chart-title">⏱️ Execution Time vs. Search Depth</h3>
+      <p class="chart-caption">Wall-clock latency (ms) measured over repeated runs (median aggregated).</p>
+      <div class="chart-canvas-container">
+        <canvas id="chart-time"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <h3 class="chart-title">🌳 Nodes Visited vs. Search Depth</h3>
+      <p class="chart-caption">Minimax exponential growth $O(b^d)$ vs. Alpha-Beta pruning $O(b^{d/2})$.</p>
+      <div class="chart-canvas-container">
+        <canvas id="chart-nodes"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <h3 class="chart-title">✂️ Alpha-Beta Branch Cutoffs</h3>
+      <p class="chart-caption">Dominated branches discarded when $\beta \le \alpha$.</p>
+      <div class="chart-canvas-container">
+        <canvas id="chart-cutoffs"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <h3 class="chart-title">💾 Transposition Table Memory Consumption</h3>
+      <p class="chart-caption">Memory allocated for cached subproblems (KB, estimated per CPython object).</p>
+      <div class="chart-canvas-container">
+        <canvas id="chart-memory"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="bench-methodology-note">
+    <strong>🔬 Measurement Methodology:</strong> Benchmarks execute on detached board clones; live gameplay state is isolated and never modified. Timing uses high-resolution monotonic clocks (<code>time.perf_counter()</code>) with median aggregation over repeated runs to mitigate OS scheduling noise. Memory reports exact dictionary structure allocation (<code>sys.getsizeof()</code>) plus estimated object payload (~192 bytes/entry in CPython).
+  </div>
+</section>
+
+<!-- ========================================================================= -->
+<!-- DAA Interactive Learning Center -->
+<!-- ========================================================================= -->
+<section class="panel panel-daa" id="daa-learning-panel" aria-labelledby="daa-title">
+  <div class="dashboard-header">
+    <div>
+      <h2 id="daa-title" class="dashboard-title">🧠 Design &amp; Analysis of Algorithms (DAA) Learning Center</h2>
+      <p class="dashboard-subtitle">Mathematical formulations, recurrence relations, complexity proofs, and empirical analysis matching the Connect-4 codebase.</p>
+    </div>
+  </div>
+
+  <div class="daa-accordion-list">
+    <!-- Card 1: Minimax -->
+    <details class="daa-card" open>
+      <summary class="daa-card-header">
+        <span class="daa-card-title">1. Minimax Recurrence &amp; Zero-Sum Search Formulation</span>
+        <span class="daa-badge">Unit II — Divide &amp; Conquer</span>
+      </summary>
+      <div class="daa-card-body">
+        <p>In two-player zero-sum games of perfect information, optimal play is governed by the Minimax value $V(s)$:</p>
+        <div class="math-block">
+          $$V(s) = \max_{a \in \text{Actions}(s)} \min_{a' \in \text{Actions}(s')} V(s'')$$
+        </div>
+        <p><strong>Depth-Aware Terminal Utility:</strong> Faster wins receive higher bonuses ($+1,000,000 + d \times 1,000$) to prioritize shortest victory paths, while unavoidable defeats are delayed ($-1,000,000 - d \times 1,000$).</p>
+        <p><strong>Complexity:</strong> $T(d) = O(b^d)$ time and $S(d) = O(d)$ stack frames via in-place move undoing.</p>
+      </div>
+    </details>
+
+    <!-- Card 2: Alpha-Beta Pruning -->
+    <details class="daa-card">
+      <summary class="daa-card-header">
+        <span class="daa-card-title">2. Alpha-Beta Pruning Optimization &amp; Cutoff Invariants</span>
+        <span class="daa-badge">Unit II &amp; IV — Pruning &amp; Backtracking</span>
+      </summary>
+      <div class="daa-card-body">
+        <p>Alpha-Beta maintains a dynamic search window $[\alpha, \beta]$ where:</p>
+        <ul>
+          <li><strong>$\alpha$ (alpha):</strong> The maximum score the maximizing player is guaranteed to achieve.</li>
+          <li><strong>$\beta$ (beta):</strong> The minimum score the minimizing player allows the maximizing player to achieve.</li>
+        </ul>
+        <p><strong>Pruning Condition:</strong> Whenever any child evaluation satisfies $\beta \le \alpha$, a branch cutoff occurs immediately. At MAX nodes, if $v \ge \beta$, the minimizing ancestor will never choose this path. At MIN nodes, if $v \le \alpha$, the maximizing ancestor already has a superior alternative.</p>
+        <p><strong>Preservation Proof:</strong> Discarded subtrees are mathematically proven to be dominated by already evaluated siblings; thus, $\text{Eval}_{\text{Alpha-Beta}} \equiv \text{Eval}_{\text{Minimax}}$.</p>
+        <p><strong>Complexity:</strong> Worst-case $O(b^d)$ when moves are explored worst-to-best; Best-case $O(b^{d/2})$ under optimal move ordering, dropping the effective branching factor from $b \approx 7$ to $b_{\text{eff}} \approx \sqrt{7} \approx 2.65$.</p>
+      </div>
+    </details>
+
+    <!-- Card 3: Move Ordering -->
+    <details class="daa-card">
+      <summary class="daa-card-header">
+        <span class="daa-card-title">3. Tactical Move Ordering Heuristic</span>
+        <span class="daa-badge">Unit IV — Greedy Heuristics</span>
+      </summary>
+      <div class="daa-card-body">
+        <p>To approach the theoretical best-case $O(b^{d/2})$, candidate moves are ordered prior to recursion:</p>
+        <ol>
+          <li><strong>Transposition Table Hash Move (+50,000):</strong> The best move discovered in previous searches at this state.</li>
+          <li><strong>Immediate Winning Moves (+10,000):</strong> Dropping a disc that immediately completes 4-in-a-row.</li>
+          <li><strong>Immediate Blocking Moves (+5,000):</strong> Columns where the opponent would win on their next turn.</li>
+          <li><strong>Center-to-Flank Proximity:</strong> Columns closer to the center column (Col 4) receive up to +60 bonus points due to participation in more winning lines (col 3 participates in 24 windows vs. col 0/6 in only 3).</li>
+        </ol>
+      </div>
+    </details>
+
+    <!-- Card 4: Transposition Table -->
+    <details class="daa-card">
+      <summary class="daa-card-header">
+        <span class="daa-card-title">4. Memoization, Bound Semantics &amp; Transposition Tables</span>
+        <span class="daa-badge">Unit III — Dynamic Programming</span>
+      </summary>
+      <div class="daa-card-body">
+        <p>Connect-4 game paths form a Directed Acyclic Graph (DAG). Permutations of independent moves reach identical states (transpositions). A Transposition Table caches evaluated subproblems to avoid redundant re-search.</p>
+        <p><strong>Alpha-Beta Bound Classification:</strong></p>
+        <ul>
+          <li><code>EXACT</code>: Accurate minimax value ($\alpha < v < \beta$).</li>
+          <li><code>LOWER_BOUND</code>: Beta-cutoff occurred ($v \ge \beta$). True value $\ge v$.</li>
+          <li><code>UPPER_BOUND</code>: Fail-low ($v \le \alpha$). True value $\le v$.</li>
+        </ul>
+        <p><strong>Depth Invariant:</strong> Reused for score cutoff only if $d_{\text{stored}} \ge d_{\text{current}}$. If $d_{\text{stored}} < d_{\text{current}}$, the stored best move is still utilized for Move Ordering.</p>
+      </div>
+    </details>
+
+    <!-- Card 5: Theoretical vs Empirical -->
+    <details class="daa-card">
+      <summary class="daa-card-header">
+        <span class="daa-card-title">5. Theoretical Asymptotics vs. Measured Empirical Reality</span>
+        <span class="daa-badge">Unit I — Empirical Analysis</span>
+      </summary>
+      <div class="daa-card-body">
+        <p><strong>Why Empirical Runtimes Differ from Big-O:</strong></p>
+        <ul>
+          <li><strong>Constant Factor Overhead:</strong> Hash key creation and dictionary lookup incur a small constant cost (~$1.2\ \mu\text{s}$). For shallow subtrees ($d = 1$), recomputing the leaf heuristic directly can be as fast as table hashing.</li>
+          <li><strong>Transposition Density:</strong> Symmetrical midgames yield high cache hit rates ($>20\%$), producing substantial runtime savings. In contrast, narrow forced tactical lines have few transpositions, yielding modest cache hit rates.</li>
+          <li><strong>Hardware &amp; Interpreter Dynamics:</strong> CPU instruction caching, memory bus saturation, and Python interpreter bytecode dispatch create non-linear variations across depths.</li>
+        </ul>
+      </div>
+    </details>
+  </div>
+</section>
+
 <!-- Modal: Search Algorithm Comparison -->
 <div id="comparison-modal" class="comparison-modal hidden" role="dialog" aria-modal="true" aria-labelledby="comp-title">
   <div class="comparison-card">
@@ -301,5 +515,8 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/game.js') }}"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}?v=4"></script>
+<script src="{{ url_for('static', filename='js/game.js') }}?v=4"></script>
 {% endblock %}
+

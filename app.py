@@ -29,6 +29,12 @@ from algorithms.greedy import get_greedy_decision, GreedyDecision
 from algorithms.minimax import get_minimax_decision, MinimaxDecision
 from algorithms.alphabeta import get_alphabeta_decision, AlphaBetaDecision
 from algorithms.comparison import compare_algorithms
+from benchmarks import (
+    list_positions,
+    get_position,
+    run_position_benchmark,
+    run_depth_scaling_benchmark,
+)
 
 app: Flask = Flask(__name__)
 # Secret key enables Flask session cookies.
@@ -200,6 +206,118 @@ def api_compare() -> object:
 
     report = compare_algorithms(_board, depth=depth, player=_ai_player, repeats=repeats)
     return jsonify({"success": True, **report})
+
+
+@app.route("/api/benchmark/positions")
+def api_benchmark_positions() -> object:
+    """Return available saved benchmark positions."""
+    return jsonify({"success": True, "ok": True, "positions": list_positions()})
+
+
+@app.route("/api/benchmark/run", methods=["POST"])
+def api_benchmark_run() -> object:
+    """Execute reproducible performance benchmark across algorithms.
+
+    Expected JSON body:
+        {"position_id": "opening_center" | "tactical_block" | ..., "depth": <1-4>, "repeats": <1-5>}
+    Guarantees the live game board state is never modified.
+    """
+    data = request.get_json(silent=True) or {}
+    pos_id = data.get("position_id", "opening_center")
+    depth = data.get("depth", 3)
+    repeats = data.get("repeats", 3)
+    try:
+        depth = int(depth)
+    except (ValueError, TypeError):
+        depth = 3
+    depth = max(1, min(depth, 4))
+
+    try:
+        repeats = int(repeats)
+    except (ValueError, TypeError):
+        repeats = 3
+    repeats = max(1, min(repeats, 5))
+
+    if pos_id == "live":
+        from benchmarks.positions import BenchmarkPosition
+        live_clone = _board.copy()
+        live_pos = BenchmarkPosition(
+            id="live",
+            name="Current Live Board State",
+            description=f"Authoritative live board snapshot with {_board.move_count} moves played",
+            phase="Live Match",
+            player_to_move=_board.current_player,
+            builder=lambda: live_clone.copy(),
+        )
+        report = run_position_benchmark(live_pos, depth=depth, repeats=repeats)
+    else:
+        report = run_position_benchmark(pos_id, depth=depth, repeats=repeats)
+
+    KEY_MAP = {
+        "minimax": "minimax",
+        "alphabeta_no_ordering": "alphabeta_natural",
+        "alphabeta_with_ordering": "alphabeta_ordered",
+        "alphabeta_with_tt": "alphabeta_tt",
+    }
+    raw_results = report.get("results", {})
+    results_list = [
+        {"algorithm_key": KEY_MAP.get(k, k), "original_key": k, **v}
+        for k, v in raw_results.items()
+    ]
+    return jsonify({
+        **report,
+        "success": True,
+        "ok": True,
+        "results": results_list,
+        "raw_results": raw_results,
+    })
+
+
+@app.route("/api/benchmark/scaling", methods=["POST"])
+def api_benchmark_scaling() -> object:
+    """Execute depth-scaling benchmark generating multi-series chart datasets.
+
+    Expected JSON body:
+        {"position_id": "opening_center", "max_depth": <1-4>, "repeats": <1-3>}
+    """
+    data = request.get_json(silent=True) or {}
+    pos_id = data.get("position_id", "opening_center")
+    max_depth = data.get("max_depth", 4)
+    repeats = data.get("repeats", 2)
+    try:
+        max_depth = int(max_depth)
+    except (ValueError, TypeError):
+        max_depth = 4
+    max_depth = max(1, min(max_depth, 4))
+
+    try:
+        repeats = int(repeats)
+    except (ValueError, TypeError):
+        repeats = 2
+    repeats = max(1, min(repeats, 3))
+
+    if pos_id == "live":
+        from benchmarks.positions import BenchmarkPosition
+        live_clone = _board.copy()
+        live_pos = BenchmarkPosition(
+            id="live",
+            name="Current Live Board State",
+            description=f"Authoritative live board snapshot with {_board.move_count} moves played",
+            phase="Live Match",
+            player_to_move=_board.current_player,
+            builder=lambda: live_clone.copy(),
+        )
+        scaling_report = run_depth_scaling_benchmark(position_id=live_pos, max_depth=max_depth, repeats=repeats)
+    else:
+        scaling_report = run_depth_scaling_benchmark(position_id=pos_id, max_depth=max_depth, repeats=repeats)
+
+    return jsonify({
+        "success": True,
+        "ok": True,
+        "scaling": scaling_report,
+        **scaling_report,
+    })
+
 
 
 @app.route("/api/reset", methods=["POST"])

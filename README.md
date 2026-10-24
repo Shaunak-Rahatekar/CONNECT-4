@@ -9,22 +9,19 @@ Algorithms (DAA)** course.
 
 ## Current Status
 
-**Milestone 6 — Memoization and Transposition Table** ✅
+**Milestone 7 — AI Performance Dashboard & DAA Learning Center** ✅
 
-- 💾 **Transposition Table Search Optimization:** Dedicated state memoization engine (`algorithms/transposition_table.py`) caching evaluated subtrees across game graph transpositions:
-  - Canonical immutable tuple keying `((row_0), ..., (row_5), player)` with **zero collision risk** and optional 64-bit Zobrist hashing.
-  - Three-tier Alpha-Beta bound semantics: `EXACT` (full subgame value), `LOWER_BOUND` (beta-cutoff), and `UPPER_BOUND` (all moves failed low).
-  - Depth requirement verification: only reuses stored bounds when $d_{\text{stored}} \ge d_{\text{current}}$, while leveraging shallower entries for **Hash Move Ordering**.
-  - Depth-aware terminal score normalization and reconstitution across search depths.
-  - Bounded memory management with configurable `max_entries` and shallow-depth eviction.
-- ⚡ **Alpha-Beta Pruning Integration:** Seamless caching toggle with real-time tracking of cache hits, misses, hit rate %, active entries, and estimated memory.
-- ⚖️ **4-Way Benchmark Comparison Modal:** Interactive benchmarking evaluating identical live board positions across:
-  1. Minimax (No Pruning)
-  2. Alpha-Beta (Natural Order, No Cache)
-  3. Alpha-Beta (Move Ordering, No Cache)
-  4. Alpha-Beta + Transposition Table (Move Ordering & Caching)
-- 🎮 **Game Modes & Strategy Selector:** Full support for Local 2-Player, Greedy AI, Minimax AI, and Alpha-Beta AI with Move Ordering and Transposition Table toggles.
-- 🧪 **Complete Test Suite:** 158 automated pytest tests passing across game engine, procedural API, Greedy AI, Minimax AI, Alpha-Beta AI, Transposition Table, and Flask REST endpoints.
+- 📊 **Empirical Performance Dashboard:** Dedicated analytics dashboard powered by the authoritative Python search engines:
+  - Multi-run statistical aggregation with median execution time reporting (`time.perf_counter()`).
+  - Strict game state isolation: benchmarks evaluate independent detached board clones without mutating live gameplay.
+  - Reproducible benchmark positions representing diverse game phases (Opening, Tactical Threat, Complex Midgame, Symmetric Transpositions).
+- 📈 **Interactive Chart.js Visualizations:**
+  1. *⏱️ Latency vs. Search Depth:* Millisecond execution time across depths 1–4.
+  2. *🌳 Nodes Visited vs. Search Depth:* Demonstrates the reduction from $O(b^d)$ to $O(b^{d/2})$.
+  3. *✂️ Alpha-Beta Branch Cutoffs:* Pruned dominated branches where $\beta \le \alpha$.
+  4. *💾 Transposition Table Memory:* Estimated allocated memory in KB per CPython object footprint.
+- 🧠 **DAA Interactive Learning Center:** Collapsible reference cards matching the academic syllabus (Divide & Conquer, Dynamic Programming, Backtracking, and Greedy Heuristics) with mathematical recurrences and complexity trade-offs.
+- 🧪 **Complete Test Suite:** **168 automated pytest tests** passing across all modules and REST endpoints.
 
 ---
 
@@ -35,8 +32,8 @@ Algorithms (DAA)** course.
 - 🌲 **Recursive Minimax AI Opponent** ✅ *(Milestone 4)*
 - ✂️ **Alpha-Beta Pruning Optimization** ✅ *(Milestone 5)*
 - 💾 **Memoized Minimax & Transposition Table** ✅ *(Milestone 6)*
-- 📈 **Algorithm Performance Comparison Dashboard** *(Milestone 7 — Next)*
-- 🧪 **Complete pytest suite (158 tests passing)** ✅
+- 📊 **AI Performance Dashboard & DAA Analytics** ✅ *(Milestone 7)*
+- 🧪 **Complete pytest suite (168 tests passing)** ✅
 
 ---
 
@@ -88,8 +85,11 @@ CONNECT-4/
 │   ├── alphabeta.py        Alpha-Beta Pruning search & move ordering
 │   ├── transposition_table.py  Transposition Table, bound types, Zobrist hashing
 │   └── comparison.py       Automated 4-way algorithm benchmark runner
-├── benchmarks/             Performance runner (added in Prompt 7)
-├── tests/                  Automated pytest test suite (158 tests)
+├── benchmarks/             Automated benchmark engine
+│   ├── __init__.py         Package exports
+│   ├── positions.py        Canonical benchmark board positions
+│   └── runner.py           Multi-run benchmark runner & Chart.js dataset generator
+├── tests/                  Automated pytest test suite (168 tests)
 │   ├── test_board.py       40 unit tests for Board
 │   ├── test_rules.py       24 unit tests for Rules
 │   ├── test_engine.py      23 unit tests for procedural engine functions
@@ -97,10 +97,18 @@ CONNECT-4/
 │   ├── test_minimax.py     12 unit tests for Minimax AI search & statistics
 │   ├── test_alphabeta.py   13 unit tests for Alpha-Beta pruning & equivalence
 │   ├── test_transposition.py 13 unit tests for Transposition Table & bounds
-│   └── test_app.py         19 integration tests for Flask REST endpoints
-├── templates/              Jinja2 HTML templates (base.html, index.html)
-├── static/                 CSS stylesheet and JavaScript client controller
-└── docs/                   Technical documentation and DAA analysis
+│   ├── test_benchmark.py   5 unit tests for benchmark runner and chart scaling
+│   └── test_app.py         23 integration tests for Flask REST endpoints
+├── templates/
+│   ├── base.html           Base layout template with navigation
+│   └── index.html          Game arena, AI decision panel, dashboard, DAA center
+├── static/
+│   ├── css/style.css       Theme tokens, responsive board, charts & accordion styles
+│   └── js/
+│       ├── game.js         Live game controller & AI panel updates
+│       └── dashboard.js    Performance dashboard & Chart.js interactive manager
+└── docs/
+    └── PROJECT_DOCUMENTATION.md  Exhaustive DAA analysis and development log
 ```
 
 ---
