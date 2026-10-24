@@ -398,18 +398,11 @@ tests/test_rules.py  — 24 tests
 Repository initialised locally.  Remote configured to:
 `https://github.com/Shaunak-Rahatekar/CONNECT-4.git`
 
-**Local commit created** — push commands provided below.
-To push after authentication:
-
-```powershell
-cd "d:\CONNECT-4"
-git remote add origin https://github.com/Shaunak-Rahatekar/CONNECT-4.git
-git branch -M main
-git push -u origin main
-```
-
-*(Push status will be confirmed after the user runs the above commands or
-after GitHub authentication is available.)*
+**Commit hash:** `a137082`
+**Branch:** `main`
+**Remote:** `https://github.com/Shaunak-Rahatekar/CONNECT-4.git`
+**Push status:** ✅ Confirmed — `origin/main` is up to date with local `main`.
+Branch created on GitHub: `* [new branch] main -> main`.
 
 ---
 
