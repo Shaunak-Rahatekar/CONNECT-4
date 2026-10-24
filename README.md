@@ -21,7 +21,7 @@ Algorithms (DAA)** course.
   3. *✂️ Alpha-Beta Branch Cutoffs:* Pruned dominated branches where $\beta \le \alpha$.
   4. *💾 Transposition Table Memory:* Estimated allocated memory in KB per CPython object footprint.
 - 🧠 **DAA Interactive Learning Center:** Collapsible reference cards matching the academic syllabus (Divide & Conquer, Dynamic Programming, Backtracking, and Greedy Heuristics) with mathematical recurrences and complexity trade-offs.
-- 🧪 **Complete Test Suite:** **168 automated pytest tests** passing across all modules and REST endpoints.
+- 🧪 **Complete Test Suite:** **173 automated pytest tests** passing across all modules and REST endpoints.
 
 ---
 
@@ -33,7 +33,7 @@ Algorithms (DAA)** course.
 - ✂️ **Alpha-Beta Pruning Optimization** ✅ *(Milestone 5)*
 - 💾 **Memoized Minimax & Transposition Table** ✅ *(Milestone 6)*
 - 📊 **AI Performance Dashboard & DAA Analytics** ✅ *(Milestone 7)*
-- 🧪 **Complete pytest suite (168 tests passing)** ✅
+- 🧪 **Complete pytest suite (173 tests passing)** ✅
 
 ---
 
@@ -89,7 +89,7 @@ CONNECT-4/
 │   ├── __init__.py         Package exports
 │   ├── positions.py        Canonical benchmark board positions
 │   └── runner.py           Multi-run benchmark runner & Chart.js dataset generator
-├── tests/                  Automated pytest test suite (168 tests)
+├── tests/                  Automated pytest test suite (173 tests)
 │   ├── test_board.py       40 unit tests for Board
 │   ├── test_rules.py       24 unit tests for Rules
 │   ├── test_engine.py      23 unit tests for procedural engine functions
@@ -98,7 +98,8 @@ CONNECT-4/
 │   ├── test_alphabeta.py   13 unit tests for Alpha-Beta pruning & equivalence
 │   ├── test_transposition.py 13 unit tests for Transposition Table & bounds
 │   ├── test_benchmark.py   5 unit tests for benchmark runner and chart scaling
-│   └── test_app.py         23 integration tests for Flask REST endpoints
+│   ├── test_app.py         23 integration tests for Flask REST endpoints
+│   └── test_audit.py       5 regression and invariant audit tests
 ├── templates/
 │   ├── base.html           Base layout template with navigation
 │   └── index.html          Game arena, AI decision panel, dashboard, DAA center
