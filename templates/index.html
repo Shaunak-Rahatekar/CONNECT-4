@@ -44,9 +44,9 @@
     <section class="control-group">
       <h3>AI Strategy</h3>
       <select id="ai-strategy" aria-label="AI Strategy Selector">
+        <option value="alphabeta" selected>Alpha-Beta Pruning (Prompt 5)</option>
+        <option value="minimax">Minimax AI (Prompt 4)</option>
         <option value="greedy">Greedy Heuristic (Prompt 3)</option>
-        <option value="minimax" selected>Minimax AI (Prompt 4)</option>
-        <option value="alphabeta" disabled>Alpha-Beta (Prompt 5 — Coming Soon)</option>
         <option value="memo" disabled>Memoized Minimax (Prompt 6 — Coming Soon)</option>
       </select>
     </section>
@@ -56,12 +56,19 @@
         <h3>AI Search Depth</h3>
         <span id="depth-label" class="badge badge-active">3 (Medium)</span>
       </div>
-      <input type="range" id="ai-depth" min="1" max="4" value="3" aria-label="Minimax Search Depth: 1 to 4" />
+      <input type="range" id="ai-depth" min="1" max="4" value="3" aria-label="Search Depth: 1 to 4" />
       <div class="depth-presets">
         <span class="depth-tag">1: Easy</span>
         <span class="depth-tag">2: Casual</span>
         <span class="depth-tag">3: Medium</span>
         <span class="depth-tag">4: Hard</span>
+      </div>
+
+      <div class="ordering-container" id="ordering-container">
+        <label class="checkbox-label" for="ai-move-ordering">
+          <input type="checkbox" id="ai-move-ordering" checked />
+          <span>Move Ordering (Optimized)</span>
+        </label>
       </div>
     </section>
 
@@ -170,7 +177,7 @@
             <span id="ai-compute-time" class="ai-val">0.0 ms</span>
           </div>
 
-          <!-- Minimax-specific metrics -->
+          <!-- Minimax & Alpha-Beta Search Metrics -->
           <div id="ai-minimax-metrics" class="ai-minimax-metrics">
             <div class="ai-metric-row">
               <span class="ai-label">Nodes Visited:</span>
@@ -179,6 +186,10 @@
             <div class="ai-metric-row">
               <span class="ai-label">Recursive Calls:</span>
               <span id="ai-recursive-calls" class="ai-val">0</span>
+            </div>
+            <div class="ai-metric-row" id="row-cutoffs">
+              <span class="ai-label">Branch Cutoffs (α/β):</span>
+              <span id="ai-cutoffs" class="ai-val">0</span>
             </div>
             <div class="ai-metric-row">
               <span class="ai-label">Max Depth Reached:</span>
@@ -206,6 +217,11 @@
             </div>
             <div id="ai-tree-container" class="ai-tree-container"></div>
           </div>
+
+          <!-- Interactive Comparison Trigger -->
+          <button id="btn-compare-algorithms" type="button" class="btn btn-secondary btn-full btn-compare" aria-label="Compare Minimax, Alpha-Beta (Natural), and Alpha-Beta (Ordered) on current board">
+            ⚡ Compare Search Algorithms
+          </button>
         </div>
       </div>
     </section>
@@ -232,6 +248,40 @@
     </section>
 
   </aside>
+</div>
+
+<!-- Modal: Search Algorithm Comparison -->
+<div id="comparison-modal" class="comparison-modal hidden" role="dialog" aria-modal="true" aria-labelledby="comp-title">
+  <div class="comparison-card">
+    <div class="comp-header">
+      <h3 id="comp-title" class="comp-title">⚡ Algorithm Benchmark Comparison</h3>
+      <button id="btn-close-comp" class="btn-close-modal" aria-label="Close comparison modal">&times;</button>
+    </div>
+    <p class="comp-subtitle">Evaluating the identical board state at Depth <span id="comp-depth-val">3</span> across all three search configurations.</p>
+    
+    <div class="comp-table-container">
+      <table class="comp-table">
+        <thead>
+          <tr>
+            <th>Algorithm Configuration</th>
+            <th>Chosen Move</th>
+            <th>Score</th>
+            <th>Nodes Visited</th>
+            <th>Cutoffs</th>
+            <th>Time (ms)</th>
+            <th>Work Reduction</th>
+          </tr>
+        </thead>
+        <tbody id="comp-table-body">
+          <!-- Populated dynamically via JS -->
+        </tbody>
+      </table>
+    </div>
+
+    <div class="comp-insights" id="comp-insights">
+      <!-- Analytical takeaway populated via JS -->
+    </div>
+  </div>
 </div>
 {% endblock %}
 

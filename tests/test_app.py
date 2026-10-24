@@ -226,3 +226,55 @@ def test_api_minimax_auto_ai(client):
     assert data["ai_decision"]["strategy"] == "minimax"
 
 
+def test_api_mode_switch_alphabeta(client):
+    res = client.post("/api/mode", json={
+        "mode": "hva",
+        "ai_strategy": "alphabeta",
+        "depth": 3,
+        "use_move_ordering": True,
+    })
+    assert res.status_code == 200
+    data = res.get_json()
+    assert data["game_mode"] == "hva"
+    assert data["ai_strategy"] == "alphabeta"
+    assert data["ai_depth"] == 3
+    assert data["use_move_ordering"] is True
+
+
+def test_api_alphabeta_move_success(client):
+    client.post("/api/mode", json={
+        "mode": "hva",
+        "ai_strategy": "alphabeta",
+        "depth": 2,
+        "use_move_ordering": True,
+    })
+    client.post("/api/move", json={"col": 3})
+
+    res_ai = client.post("/api/ai-move")
+    assert res_ai.status_code == 200
+    data = res_ai.get_json()
+    assert data["success"] is True
+    assert data["player"] == PLAYER2
+    assert "ai_decision" in data
+    dec = data["ai_decision"]
+    assert dec["strategy"] == "alphabeta"
+    assert dec["column"] in range(COLS)
+    assert dec["nodes_visited"] > 0
+    assert "cutoffs" in dec
+
+
+def test_api_compare_endpoint(client):
+    # Drop an opening disc
+    client.post("/api/move", json={"col": 3})
+
+    res = client.post("/api/compare", json={"depth": 2, "repeats": 1})
+    assert res.status_code == 200
+    data = res.get_json()
+    assert data["success"] is True
+    assert data["scores_match"] is True
+    assert "minimax" in data["algorithms"]
+    assert "alphabeta_no_ordering" in data["algorithms"]
+    assert "alphabeta_with_ordering" in data["algorithms"]
+
+
+

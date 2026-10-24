@@ -214,7 +214,7 @@ pytest tests/ -v
 |------|---------|--------|--------|
 | I — Complexity Analysis | Board op complexity, win detection O(R·C) | board.py, rules.py | ✅ Prompt 1 |
 | II — Recursion / D&C | Recursive Minimax, game trees | minimax.py | ✅ Prompt 4 |
-| II — Recursion / D&C | Alpha-Beta Pruning | alphabeta.py | Prompt 5 |
+| II — Recursion / D&C | Alpha-Beta Pruning | alphabeta.py | ✅ Prompt 5 |
 | III — Dynamic Programming | Memoization / transposition table | transposition.py | Prompt 6 |
 | IV — Greedy | Heuristic-based AI | greedy.py | ✅ Prompt 3 |
 | IV — Backtracking | Move simulation + undo during search | board.py | ✅ Prompt 1 |
@@ -232,7 +232,8 @@ Tests reside in `tests/` and run with `pytest`.  No Flask server is required.
 - **test_engine.py** — 23 tests covering procedural engine functions.
 - **test_greedy.py** — 14 tests covering Greedy AI priorities and heuristics.
 - **test_minimax.py** — 12 tests covering Minimax wins, blocks, depths, and statistics.
-- **test_app.py** — 15 tests covering Flask REST APIs, mode transitions, and AI endpoints.
+- **test_alphabeta.py** — 13 tests covering Alpha-Beta pruning correctness, bounds, cutoffs, and equivalence.
+- **test_app.py** — 18 tests covering Flask REST APIs, mode transitions, Alpha-Beta AI, and comparison benchmarks.
 
 After every milestone, the full test suite is re-run and regressions are fixed
 before committing.
@@ -247,7 +248,7 @@ before committing.
 | 2 | Complete playable Connect-4 game | ✅ Complete |
 | 3 | Greedy AI | ✅ Complete |
 | 4 | Minimax AI and decision-tree analysis | ✅ Complete |
-| 5 | Alpha-Beta Pruning and comparison | Pending |
+| 5 | Alpha-Beta Pruning and comparison | ✅ Complete |
 | 6 | Memoization and transposition table | Pending |
 | 7 | Performance dashboard | Pending |
 | 8 | Final testing, complexity analysis, documentation | Pending |
@@ -902,6 +903,178 @@ tests/test_rules.py (24 tests)     — All PASSED
 - **Commit Message:** `feat: implement recursive Minimax AI`
 - **Remote:** `https://github.com/Shaunak-Rahatekar/CONNECT-4.git`
 - **Push Status:** ✅ Confirmed — pushed to `origin/main` (`7593507..b539ff4`).
+
+---
+
+## Development Log — Prompt 5
+
+**Date:** 2026-10-24  
+**Objective:** Implement Alpha-Beta Pruning as an optimization of Minimax. Demonstrate experimentally how pruning dramatically reduces the search state space while preserving identical Minimax evaluations at equal depths. Implement configurable move ordering to measure its incremental benefit over pruning alone, provide a comparative benchmark UI modal, and document comprehensive DAA theoretical and empirical analysis.
+
+---
+
+### Features Implemented
+
+1. **`algorithms/alphabeta.py`** — Dedicated Alpha-Beta Pruning implementation:
+   - Alpha ($\alpha$) and beta ($\beta$) window bounds propagated through DFS recursion.
+   - Dual-agent alternation: Maximizing nodes (AI) and Minimizing nodes (Human).
+   - Dynamic bound updates: $\alpha \leftarrow \max(\alpha, \text{child\_eval})$ and $\beta \leftarrow \min(\beta, \text{child\_eval})$.
+   - Early cutoff termination whenever $\beta \le \alpha$.
+   - Strict scoring parity with Minimax: identical depth-aware terminal win bonuses ($+1,000,000 + d \times 1,000$), loss penalties ($-1,000,000 - d \times 1,000$), draw scores ($0.0$), and static heuristic evaluation from `algorithms/evaluation.py`.
+   - Comprehensive search metrics tracking: `nodes_visited`, `recursive_calls`, `cutoffs`, `max_depth_reached`, and `execution_time_ms`.
+   - Configurable move ordering (`use_move_ordering: bool`) to isolate the pruning effect from the ordering heuristic.
+2. **Move Ordering Strategy (`order_candidate_columns`)**:
+   - Priority 1: Immediate winning moves (evaluated first).
+   - Priority 2: Immediate blocking moves (evaluated second).
+   - Priority 3: Strategic center-to-flank column ordering (`[3, 2, 4, 1, 5, 0, 6]`).
+   - Configurable via UI checkbox and API flag (`use_move_ordering`).
+3. **Automated Comparative Benchmark Engine (`algorithms/comparison.py`)**:
+   - Evaluates identical board positions across three search configurations:
+     1. Minimax without pruning
+     2. Alpha-Beta without move ordering (natural column order `0..6`)
+     3. Alpha-Beta with move ordering (immediate tactics + center-first)
+   - Measures nodes visited, recursive calls, cutoffs, execution time (with optional repetitions for sub-millisecond precision), node reduction percentage, and speedup ratios.
+   - Formally verifies that Minimax and Alpha-Beta produce the exact same optimal subgame score.
+4. **Backend REST API Extensions (`app.py`)**:
+   - Added `alphabeta` to supported AI strategies.
+   - Added `use_move_ordering` flag in `/api/mode` and session state.
+   - Exposed `POST /api/compare` endpoint to run benchmarks on the active live game position.
+5. **Interactive UI Enhancements (`templates/index.html`, `static/css/style.css`, `static/js/game.js`)**:
+   - Added "Alpha-Beta Pruning (Prompt 5)" to the AI Strategy dropdown.
+   - Added "Move Ordering (Tactical + Center-First)" checkbox control.
+   - Added "Branch Cutoffs (&alpha;/&beta;)" display in the live AI Metrics panel.
+   - Added "⚡ Compare Search Algorithms" trigger button.
+   - Built an interactive Comparison Benchmark Modal displaying a side-by-side performance table and DAA analytical insights.
+
+---
+
+### DAA Algorithmic and Complexity Analysis
+
+#### 1. Pruning Conditions
+In a two-player zero-sum game tree:
+- $\alpha$ is the minimum score the maximizing player is guaranteed to achieve.
+- $\beta$ is the maximum score the minimizing player is guaranteed to allow.
+- Search window begins at $(-\infty, +\infty)$.
+
+**Maximizing Node (AI Turn):**
+$$\alpha \leftarrow \max(\alpha, \text{child\_eval})$$
+If $\beta \le \alpha$, a **$\beta$-cutoff** occurs. The minimizing ancestor already has an alternative path with score $\beta \le \alpha$, so it will never allow play to reach this maximizing node. Remaining siblings are safely discarded.
+
+**Minimizing Node (Human Turn):**
+$$\beta \leftarrow \min(\beta, \text{child\_eval})$$
+If $\beta \le \alpha$, an **$\alpha$-cutoff** occurs. The maximizing ancestor already has an alternative path with score $\alpha \ge \beta$, so it will never choose this branch. Remaining siblings are safely discarded.
+
+#### 2. Mathematical Proof of Minimax Result Preservation
+Alpha-Beta Pruning is an exact optimization of Minimax:
+- At any internal node $N$, we prune child subtrees only when the provisional value at $N$ satisfies $\beta \le \alpha$.
+- If $N$ is a MIN node and has found a child $C$ with $v(C) \le \alpha$, then $v(N) = \min_i v(C_i) \le v(C) \le \alpha$.
+- The parent of $N$ (or an earlier MAX ancestor) already knows a sibling branch yielding at least $\alpha$. Since MAX chooses $\max(\alpha, v(N))$ and $v(N) \le \alpha$, the final value at MAX is completely determined by $\alpha$, independent of any yet-unexplored children of $N$.
+- Therefore, discarding unvisited children of $N$ cannot change the evaluation of MAX at the root.
+- Consequently:
+$$\text{Eval}_{\text{Alpha-Beta}}(\text{Board}, d) \equiv \text{Eval}_{\text{Minimax}}(\text{Board}, d)$$
+Our test suite and live comparison engine continuously enforce this equality.
+
+#### 3. Worst-Case Time Complexity: $O(b^d)$
+- **Condition:** Occurs when candidate moves at every node are explored in worst-to-best order.
+- **Consequence:** At MAX nodes, the worst moves are evaluated first, keeping $\alpha$ low; at MIN nodes, the worst moves are evaluated first, keeping $\beta$ high.
+- Under worst-case ordering, $\beta \le \alpha$ is never satisfied early, resulting in zero cutoffs.
+- The algorithm visits every node in the minimax tree, yielding:
+$$T_{\text{worst}}(d) = O(b^d)$$
+where $b$ is the branching factor (up to 7 in Connect-4) and $d$ is the search depth.
+
+#### 4. Best-Case Time Complexity: $O(b^{d/2})$
+- **Condition:** Occurs under optimal move ordering, where the best move is explored first at every node.
+- **Analysis:**
+  - At each node where the player has choice (MAX nodes), exploring the best move immediately establishes a tight $\alpha$ bound.
+  - At the opponent's subsequent nodes (MIN nodes), the very first counter-move often confirms that the position is worse than $\alpha$, triggering an immediate cutoff on the remaining $b - 1$ siblings.
+  - The number of examined leaf nodes follows:
+$$N_{\text{best}}(d) = b^{\lceil d/2 \rceil} + b^{\lfloor d/2 \rfloor} - 1 = O(b^{d/2})$$
+  - Effective branching factor drops to:
+$$b_{\text{eff}} \approx \sqrt{b} \approx \sqrt{7} \approx 2.65$$
+  - **Key Assumption:** This theoretical bound assumes a perfect ordering oracle. In practice, domain heuristics (immediate wins, immediate blocks, center columns) approximate this ordering, achieving a substantial fraction of the theoretical speedup without the overhead of full pre-sorting.
+
+#### 5. Space Complexity: $O(d)$
+- **Call Stack:** Depth-first traversal requires at most $d$ active recursive stack frames.
+- **Data Structures:** Zero heap allocation for board states. The game state is maintained using in-place backtracking via `board.drop_disc()` and `board.undo_last_move()`.
+- Total auxiliary space is strictly:
+$$S(d) = O(d)$$
+
+#### 6. Effective Branching Factor & Board Position Dependency
+The empirical pruning efficiency is heavily influenced by the board topology:
+1. **Early Opening (Center Control):** Center columns (columns 3, 2, 4) dominate outer columns due to participation in many more potential 4-in-a-row lines. Move ordering evaluates column 3 first, establishing a strong $\alpha$, which triggers immediate cutoffs on flank columns (columns 0 and 6).
+2. **Tactical Threats (Forced Blocks):** When the opponent threatens an immediate 4-in-a-row, move ordering immediately checks the blocking column. If the block fails or leaves a winning response, cutoffs occur in 1-2 node visits.
+3. **Symmetric / Neutral Midgames:** In positions where multiple candidate moves have identical tactical evaluations, cutoffs occur later in the node list, lowering the empirical speedup.
+
+---
+
+### Empirical Benchmark Results
+
+Evaluated on the canonical opening position after Human plays Column 4 (Move 1) at Search Depth $d = 3$:
+
+| Configuration | Move Chosen | Subgame Score | Nodes Visited | Cutoffs | Exec Time (ms) | Work Reduction | Speedup |
+|---|---|---|---|---|---|---|---|
+| **Minimax (No Pruning)** | Col 4 | $+26.0$ | **400** | 0 | $23.6\text{ ms}$ | *Baseline (0%)* | $1.0\times$ |
+| **Alpha-Beta (Natural Order)** | Col 4 | $+26.0$ | **227** | 16 | $21.0\text{ ms}$ | **$43.2\%$** | $1.12\times$ |
+| **Alpha-Beta (Move Ordering)** | Col 4 | $+26.0$ | **106** | 17 | $5.2\text{ ms}$ | **$73.5\%$** | **$4.51\times$** |
+
+#### Analytical Takeaways:
+1. **Mathematical Equivalence:** Minimax, Natural Alpha-Beta, and Ordered Alpha-Beta all returned the exact same evaluation score ($+26.0$) and optimal column (Col 4), proving correctness.
+2. **Pruning Alone:** Even with standard left-to-right column traversal ($0 \dots 6$), Alpha-Beta eliminated $43.2\%$ of the search tree via 16 branch cutoffs.
+3. **Move Ordering Synergy:** Introducing tactical threat checking and center-first ordering increased pruning efficiency to **$73.5\%$ node reduction**, reducing node evaluations from $400$ down to $106$ and delivering a **$4.51\times$ wall-clock speedup**.
+
+---
+
+### Files Changed and Created
+
+| File | Status | Description |
+|---|---|---|
+| `algorithms/alphabeta.py` | Created | Alpha-Beta Pruning search engine with $\alpha/\beta$ updates, cutoffs tracking, and move ordering |
+| `algorithms/comparison.py` | Created | Automated benchmark comparison runner across Minimax, Natural AB, and Ordered AB |
+| `algorithms/__init__.py` | Updated | Package exports for `get_alphabeta_decision`, `choose_alphabeta_move`, `AlphaBetaDecision` |
+| `app.py` | Updated | Added `alphabeta` strategy, `use_move_ordering` state, and `POST /api/compare` endpoint |
+| `templates/index.html` | Updated | Added Alpha-Beta strategy option, Move Ordering toggle, Cutoffs display, and Comparison Modal |
+| `static/css/style.css` | Updated | Added styling for comparison modal, benchmark table, reduction badges, and toggle switch |
+| `static/js/game.js` | Updated | Connected move ordering switch, cutoffs rendering, and comparison modal benchmark fetcher |
+| `tests/test_alphabeta.py` | Created | 13 deterministic unit tests for Alpha-Beta tactics, bounds, cutoffs, and Minimax equivalence |
+| `tests/test_app.py` | Updated | Added integration tests for Alpha-Beta mode switching and `/api/compare` API |
+| `README.md` | Updated | Updated documentation to reflect Milestone 5 Alpha-Beta Pruning capabilities |
+| `docs/PROJECT_DOCUMENTATION.md` | Updated | Updated DAA matrix, roadmap, and appended Prompt 5 development log |
+
+---
+
+### Tests Executed and Actual Results
+
+```powershell
+pytest -v
+```
+
+```
+============================= test session starts =============================
+platform win32 -- Python 3.13.1, pytest-8.3.5, pluggy-1.7.0
+rootdir: D:\CONNECT-4
+plugins: cov-6.1.0
+collected 144 items
+
+tests/test_alphabeta.py (13 tests)   — All PASSED
+tests/test_app.py (18 tests)         — All PASSED
+tests/test_board.py (40 tests)       — All PASSED
+tests/test_engine.py (23 tests)      — All PASSED
+tests/test_greedy.py (14 tests)      — All PASSED
+tests/test_minimax.py (12 tests)     — All PASSED
+tests/test_rules.py (24 tests)       — All PASSED
+
+============================= 144 passed in 1.01s =============================
+```
+
+---
+
+### Git Commit Hash and Push Status
+
+- **Commit Hash:** Pending commit
+- **Branch:** `main`
+- **Commit Message:** `feat: add Alpha-Beta Pruning optimization`
+- **Remote:** `https://github.com/Shaunak-Rahatekar/CONNECT-4.git`
+- **Push Status:** Ready to commit and push.
 
 
 

@@ -89,6 +89,16 @@ function initDOM() {
     aiTreeContainer:    document.getElementById("ai-tree-container"),
     btnToggleTree:      document.getElementById("btn-toggle-tree"),
     aiActiveBadge:      document.getElementById("ai-active-badge"),
+    aiMoveOrdering:     document.getElementById("ai-move-ordering"),
+    orderingContainer:  document.getElementById("ordering-container"),
+    aiCutoffs:          document.getElementById("ai-cutoffs"),
+    rowCutoffs:         document.getElementById("row-cutoffs"),
+    btnCompare:         document.getElementById("btn-compare-algorithms"),
+    comparisonModal:    document.getElementById("comparison-modal"),
+    btnCloseComp:       document.getElementById("btn-close-comp"),
+    compDepthVal:       document.getElementById("comp-depth-val"),
+    compTableBody:      document.getElementById("comp-table-body"),
+    compInsights:       document.getElementById("comp-insights"),
   };
 }
 
@@ -208,8 +218,12 @@ function renderStatus(snap) {
   disc.classList.remove("p1", "p2", "thinking-pulse");
 
   const isHvA = snap.game_mode === "hva";
-  const isMinimax = snap.ai_strategy === "minimax";
-  const aiDisplayName = isMinimax ? "Minimax AI" : "Greedy AI";
+  let aiDisplayName = "Greedy AI";
+  if (snap.ai_strategy === "alphabeta") {
+    aiDisplayName = "Alpha-Beta AI";
+  } else if (snap.ai_strategy === "minimax") {
+    aiDisplayName = "Minimax AI";
+  }
 
   // Dynamic names
   const p1Name = isHvA ? "Human (Red)" : "Player 1 (Red)";
@@ -250,7 +264,13 @@ function renderStatus(snap) {
     badge.textContent = `${snap.move_count} moves played`;
   } else {
     if (isHvA && snap.current_player === 2 && State.isProcessing) {
-      text.textContent = isMinimax ? "Minimax AI is calculating tree..." : "Greedy AI is thinking...";
+      if (snap.ai_strategy === "alphabeta") {
+        text.textContent = "Alpha-Beta AI is pruning tree...";
+      } else if (snap.ai_strategy === "minimax") {
+        text.textContent = "Minimax AI is calculating tree...";
+      } else {
+        text.textContent = "Greedy AI is thinking...";
+      }
       bar.classList.add("p2-turn");
       disc.style.display = "inline-block";
       disc.classList.add("p2", "thinking-pulse");
@@ -275,13 +295,16 @@ function renderAIDecision(snap) {
 
   const decision = snap.ai_decision;
   const isHvA = snap.game_mode === "hva";
-  const isMinimax = snap.ai_strategy === "minimax";
 
   if (!isHvA || !decision) {
     if (DOM.aiEmptyState) DOM.aiEmptyState.classList.remove("hidden");
     if (DOM.aiDataContainer) DOM.aiDataContainer.classList.add("hidden");
     if (DOM.aiActiveBadge) {
-      DOM.aiActiveBadge.textContent = isHvA ? (isMinimax ? "Minimax AI" : "Greedy AI") : "2-Player";
+      let badgeName = "2-Player";
+      if (isHvA) {
+        badgeName = snap.ai_strategy === "alphabeta" ? "Alpha-Beta AI" : (snap.ai_strategy === "minimax" ? "Minimax AI" : "Greedy AI");
+      }
+      DOM.aiActiveBadge.textContent = badgeName;
     }
     return;
   }
@@ -289,11 +312,15 @@ function renderAIDecision(snap) {
   if (DOM.aiEmptyState) DOM.aiEmptyState.classList.add("hidden");
   if (DOM.aiDataContainer) DOM.aiDataContainer.classList.remove("hidden");
 
-  const strategy = decision.strategy || snap.ai_strategy || "minimax";
+  const strategy = decision.strategy || snap.ai_strategy || "alphabeta";
   if (DOM.aiActiveBadge) {
-    DOM.aiActiveBadge.textContent = strategy === "minimax"
-      ? `Minimax (Depth ${snap.ai_depth || 3})`
-      : "Greedy AI";
+    if (strategy === "alphabeta") {
+      DOM.aiActiveBadge.textContent = `Alpha-Beta (Depth ${snap.ai_depth || 3})`;
+    } else if (strategy === "minimax") {
+      DOM.aiActiveBadge.textContent = `Minimax (Depth ${snap.ai_depth || 3})`;
+    } else {
+      DOM.aiActiveBadge.textContent = "Greedy AI";
+    }
   }
 
   DOM.aiChosenCol.textContent = `Column ${decision.column + 1}`;
@@ -301,13 +328,22 @@ function renderAIDecision(snap) {
   DOM.aiComputeTime.textContent = `${decision.execution_time_ms} ms`;
 
   // Strategy specific metrics
-  if (strategy === "minimax") {
+  if (strategy === "alphabeta" || strategy === "minimax") {
     if (DOM.aiMinimaxMetrics) DOM.aiMinimaxMetrics.classList.remove("hidden");
     if (DOM.aiReasonBox) DOM.aiReasonBox.classList.add("hidden");
 
     if (DOM.aiNodesVisited) DOM.aiNodesVisited.textContent = (decision.nodes_visited ?? 0).toLocaleString();
     if (DOM.aiRecursiveCalls) DOM.aiRecursiveCalls.textContent = (decision.recursive_calls ?? 0).toLocaleString();
     if (DOM.aiMaxDepth) DOM.aiMaxDepth.textContent = decision.max_depth_reached ?? snap.ai_depth ?? 3;
+
+    if (DOM.rowCutoffs) {
+      if (strategy === "alphabeta") {
+        DOM.rowCutoffs.classList.remove("hidden");
+        if (DOM.aiCutoffs) DOM.aiCutoffs.textContent = (decision.cutoffs ?? 0).toLocaleString();
+      } else {
+        DOM.rowCutoffs.classList.add("hidden");
+      }
+    }
 
     // Render Tree Visualizer
     if (DOM.aiTreeBox && DOM.aiTreeContainer) {
@@ -343,6 +379,7 @@ function renderAIDecision(snap) {
   } else {
     // Greedy strategy
     if (DOM.aiMinimaxMetrics) DOM.aiMinimaxMetrics.classList.add("hidden");
+    if (DOM.rowCutoffs) DOM.rowCutoffs.classList.add("hidden");
     if (DOM.aiReasonBox) DOM.aiReasonBox.classList.remove("hidden");
     if (DOM.aiDecisionReason) DOM.aiDecisionReason.textContent = decision.reason || "Greedy priority";
     if (DOM.aiTreeBox) DOM.aiTreeBox.classList.add("hidden");
@@ -439,8 +476,9 @@ function rebuildMoveHistory(history, mode = "hvh") {
   [...history].reverse().forEach(entry => {
     const li = document.createElement("li");
     const playerClass = entry.player === 1 ? "p1-tag" : "p2-tag";
+    const isAB = (State.currentSnapshot && State.currentSnapshot.ai_strategy === "alphabeta");
     const isMinimax = (State.currentSnapshot && State.currentSnapshot.ai_strategy === "minimax");
-    const aiName = isMinimax ? "Minimax AI" : "Greedy AI";
+    const aiName = isAB ? "Alpha-Beta AI" : (isMinimax ? "Minimax AI" : "Greedy AI");
     const playerName  = entry.player === 1
       ? (isHvA ? "Human" : "P1")
       : (isHvA ? aiName : "P2");
@@ -486,12 +524,18 @@ function applySnapshot(snap) {
   if (DOM.aiStrategySelect && snap.ai_strategy) {
     DOM.aiStrategySelect.value = snap.ai_strategy;
   }
+  const isSearchAI = (snap.ai_strategy === "alphabeta" || snap.ai_strategy === "minimax");
   if (DOM.aiDepthInput) {
-    const isMinimax = (snap.ai_strategy === "minimax");
-    DOM.aiDepthInput.disabled = !isMinimax;
+    DOM.aiDepthInput.disabled = !isSearchAI;
     if (snap.ai_depth) {
       DOM.aiDepthInput.value = snap.ai_depth;
     }
+  }
+  if (DOM.orderingContainer) {
+    DOM.orderingContainer.classList.toggle("hidden", snap.ai_strategy !== "alphabeta");
+  }
+  if (DOM.aiMoveOrdering) {
+    DOM.aiMoveOrdering.checked = (snap.use_move_ordering !== false);
   }
   if (DOM.depthLabel) {
     const depthNames = { 1: "1 (Easy)", 2: "2 (Casual)", 3: "3 (Medium)", 4: "4 (Hard)" };
@@ -625,12 +669,18 @@ async function sendReset() {
 async function switchMode(newMode) {
   State.isProcessing = false;
   hideAlert();
-  const strategy = DOM.aiStrategySelect ? DOM.aiStrategySelect.value : "minimax";
+  const strategy = DOM.aiStrategySelect ? DOM.aiStrategySelect.value : "alphabeta";
   const depth = DOM.aiDepthInput ? parseInt(DOM.aiDepthInput.value, 10) : 3;
+  const useOrdering = DOM.aiMoveOrdering ? DOM.aiMoveOrdering.checked : true;
 
   const result = await fetchJSON("/api/mode", {
     method: "POST",
-    body: JSON.stringify({ mode: newMode, ai_strategy: strategy, depth: depth }),
+    body: JSON.stringify({
+      mode: newMode,
+      ai_strategy: strategy,
+      depth: depth,
+      use_move_ordering: useOrdering,
+    }),
   });
 
   if (result.ok) {
@@ -646,12 +696,18 @@ async function updateAISettings() {
   State.isProcessing = false;
   hideAlert();
   const activeMode = DOM.modeRadios.find(r => r.checked)?.value || "hvh";
-  const strategy = DOM.aiStrategySelect ? DOM.aiStrategySelect.value : "minimax";
+  const strategy = DOM.aiStrategySelect ? DOM.aiStrategySelect.value : "alphabeta";
   const depth = DOM.aiDepthInput ? parseInt(DOM.aiDepthInput.value, 10) : 3;
+  const useOrdering = DOM.aiMoveOrdering ? DOM.aiMoveOrdering.checked : true;
 
   const result = await fetchJSON("/api/mode", {
     method: "POST",
-    body: JSON.stringify({ mode: activeMode, ai_strategy: strategy, depth: depth }),
+    body: JSON.stringify({
+      mode: activeMode,
+      ai_strategy: strategy,
+      depth: depth,
+      use_move_ordering: useOrdering,
+    }),
   });
 
   if (result.ok) {
@@ -794,6 +850,168 @@ function attachBoardInteractions() {
       DOM.btnToggleTree.textContent = isHidden ? "Show Tree" : "Hide Tree";
       DOM.btnToggleTree.setAttribute("aria-expanded", !isHidden);
     });
+  }
+
+  // Move Ordering toggle
+  if (DOM.aiMoveOrdering) {
+    DOM.aiMoveOrdering.addEventListener("change", () => {
+      updateAISettings();
+    });
+  }
+
+  // Benchmark Comparison Modal triggers
+  if (DOM.btnCompare) {
+    DOM.btnCompare.addEventListener("click", () => {
+      openComparisonModal();
+    });
+  }
+
+  if (DOM.btnCloseComp) {
+    DOM.btnCloseComp.addEventListener("click", () => {
+      closeComparisonModal();
+    });
+  }
+
+  if (DOM.comparisonModal) {
+    DOM.comparisonModal.addEventListener("click", (e) => {
+      if (e.target === DOM.comparisonModal) {
+        closeComparisonModal();
+      }
+    });
+  }
+
+  // Keyboard escape listener to close modals
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      closeComparisonModal();
+    }
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Comparison Benchmark Modal
+// ---------------------------------------------------------------------------
+
+function closeComparisonModal() {
+  if (DOM.comparisonModal) {
+    DOM.comparisonModal.classList.add("hidden");
+  }
+}
+
+async function openComparisonModal() {
+  if (!DOM.comparisonModal) return;
+
+  const currentDepth = DOM.aiDepthInput ? parseInt(DOM.aiDepthInput.value, 10) : 3;
+  const compareDepth = Math.max(1, Math.min(currentDepth, 4));
+
+  if (DOM.compDepthVal) DOM.compDepthVal.textContent = compareDepth;
+  if (DOM.compTableBody) {
+    DOM.compTableBody.innerHTML = `
+      <tr>
+        <td colspan="7" style="text-align:center; padding: 20px; color: var(--color-muted);">
+          ⚡ Benchmarking Minimax, Alpha-Beta (Natural), and Alpha-Beta (Ordered) on current position...
+        </td>
+      </tr>
+    `;
+  }
+  if (DOM.compInsights) {
+    DOM.compInsights.innerHTML = "";
+  }
+
+  DOM.comparisonModal.classList.remove("hidden");
+
+  const result = await fetchJSON("/api/compare", {
+    method: "POST",
+    body: JSON.stringify({ depth: compareDepth, repeats: 1 }),
+  });
+
+  if (!result.ok) {
+    const errorMsg = (result.data && result.data.error) || "Benchmark comparison failed.";
+    if (DOM.compTableBody) {
+      DOM.compTableBody.innerHTML = `
+        <tr>
+          <td colspan="7" style="text-align:center; padding: 20px; color: var(--color-p1-light);">
+            ⚠️ ${errorMsg}
+          </td>
+        </tr>
+      `;
+    }
+    return;
+  }
+
+  renderComparisonTable(result.data);
+}
+
+function renderComparisonTable(report) {
+  if (!DOM.compTableBody || !report || !report.algorithms) return;
+
+  const algs = report.algorithms;
+  const mm = algs.minimax;
+  const abNo = algs.alphabeta_no_ordering;
+  const abOrd = algs.alphabeta_with_ordering;
+
+  const rows = [
+    {
+      data: mm,
+      tag: "Baseline",
+      badgeClass: "reduction-zero",
+      badgeText: "Baseline (0%)",
+    },
+    {
+      data: abNo,
+      tag: "Natural Order",
+      badgeClass: abNo.node_reduction_pct >= 40 ? "reduction-high" : (abNo.node_reduction_pct > 0 ? "reduction-mid" : "reduction-zero"),
+      badgeText: `${abNo.node_reduction_pct}% reduction`,
+    },
+    {
+      data: abOrd,
+      tag: "Move Ordering",
+      badgeClass: abOrd.node_reduction_pct >= 40 ? "reduction-high" : (abOrd.node_reduction_pct > 0 ? "reduction-mid" : "reduction-zero"),
+      badgeText: `${abOrd.node_reduction_pct}% reduction (${abOrd.speedup_ratio}x speedup)`,
+    },
+  ];
+
+  let html = "";
+  rows.forEach(r => {
+    const d = r.data;
+    const colStr = d.column_1based ? `Col ${d.column_1based}` : "—";
+    const scoreStr = formatEvalScore(d.score);
+    html += `
+      <tr>
+        <td><strong>${d.name}</strong></td>
+        <td class="comp-col-highlight">${colStr}</td>
+        <td>${scoreStr}</td>
+        <td>${d.nodes_visited.toLocaleString()}</td>
+        <td>${d.cutoffs.toLocaleString()}</td>
+        <td>${d.execution_time_ms.toFixed(1)} ms</td>
+        <td><span class="reduction-badge ${r.badgeClass}">${r.badgeText}</span></td>
+      </tr>
+    `;
+  });
+
+  DOM.compTableBody.innerHTML = html;
+
+  if (DOM.compInsights) {
+    const scoreMatch = report.scores_match;
+    const matchIcon = scoreMatch ? "✓" : "⚠️";
+    const matchText = scoreMatch
+      ? "All configurations produced identical optimal subgame evaluations, proving Alpha-Beta Pruning strictly preserves the Minimax theorem."
+      : "Score deviation detected — verify branch exploration parameters.";
+
+    DOM.compInsights.innerHTML = `
+      <div style="margin-bottom: 0.4rem;">
+        <strong>${matchIcon} Correctness Verification:</strong> ${matchText}
+      </div>
+      <div style="margin-bottom: 0.4rem;">
+        <strong>⚡ Pruning Efficiency:</strong> Pruning dominated branches (where &beta; &le; &alpha;) eliminated 
+        <strong>${abNo.node_reduction_pct}%</strong> of visited nodes over pure Minimax.
+      </div>
+      <div>
+        <strong>🎯 Move Ordering Impact:</strong> Exploring immediate tactical threats and center columns first increased cutoffs from 
+        <strong>${abNo.cutoffs}</strong> to <strong>${abOrd.cutoffs}</strong>, achieving 
+        <strong>${abOrd.node_reduction_pct}%</strong> total node reduction and a <strong>${abOrd.speedup_ratio}x</strong> speedup.
+      </div>
+    `;
   }
 }
 

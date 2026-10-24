@@ -9,17 +9,21 @@ Algorithms (DAA)** course.
 
 ## Current Status
 
-**Milestone 4 — Recursive Minimax AI Opponent** ✅
+**Milestone 5 — Alpha-Beta Pruning Optimization** ✅
 
-- 🌲 **Recursive Minimax AI Engine:** Full recursive game-tree search (`algorithms/minimax.py`) considering future counter-moves from both players:
-  - Alternating maximizing (AI) and minimizing (opponent) turns.
-  - Depth-aware terminal scoring ($+1,000,000 + d \times 1000$ for wins, $-1,000,000 - d \times 1000$ for losses), favoring faster victories and delaying unavoidable defeats.
-  - Zero-allocation in-place backtracking (`drop_disc` + `undo_last_move`), ensuring $O(d)$ recursion call-stack memory without copying boards.
-  - Heuristic non-terminal leaf evaluation across 69 four-cell windows (`algorithms/evaluation.py`).
-  - Configurable search-depth limits: Easy (Depth 1), Casual (Depth 2), Medium (Depth 3), Hard (Depth 4).
-- 📊 **Real-Time Decision Tree & Metrics Visualizer:** AI Decision Panel displays chosen column, depth-aware evaluation score, measured compute time (ms), nodes visited, recursive calls, max depth reached, candidate scores, and collapsible root decision branches tree.
-- 🎮 **Game Modes & Strategy Selector:** Seamless toggling between Local 2-Player (Pass & Play), Greedy AI (Prompt 3), and Minimax AI (Prompt 4) with authoritative server-side execution.
-- 🧪 **Complete Test Suite:** 128 automated pytest tests passing across game engine, procedural API, Greedy AI, Minimax AI, and Flask REST endpoints.
+- ⚡ **Alpha-Beta Pruning Search Engine:** Complete optimized game-tree search (`algorithms/alphabeta.py`) that strictly preserves the Minimax theorem while cutting search work:
+  - Propagates $(\alpha, \beta)$ window bounds across alternating MAX (AI) and MIN (opponent) nodes.
+  - Early cutoff termination whenever $\beta \le \alpha$, safely skipping dominated subtrees.
+  - Configurable move ordering (`order_candidate_columns`): evaluates immediate wins first, immediate blocks second, and center columns before flanks (`[3, 2, 4, 1, 5, 0, 6]`).
+  - Strict Minimax evaluation equivalence: identical depth-aware terminal scoring ($+1,000,000 + d \times 1000$ for wins, $-1,000,000 - d \times 1000$ for losses) and static leaf heuristic.
+  - Real-time search statistics: `nodes_visited`, `recursive_calls`, `cutoffs`, `max_depth_reached`, and execution time.
+- ⚖️ **Algorithm Benchmark Comparison Modal:** Interactive comparison interface evaluating identical live board positions across:
+  1. Minimax (No Pruning)
+  2. Alpha-Beta (Natural Order)
+  3. Alpha-Beta (Move Ordering)
+  - Displays side-by-side chosen move, score, nodes visited, cutoffs, execution time, work reduction percentage (up to **$73.5\%$ reduction** / **$4.51\times$ speedup**), and DAA insights.
+- 🎮 **Game Modes & Strategy Selector:** Seamless toggling between Local 2-Player, Greedy AI (Prompt 3), Minimax AI (Prompt 4), and Alpha-Beta AI (Prompt 5).
+- 🧪 **Complete Test Suite:** 144 automated pytest tests passing across game engine, procedural API, Greedy AI, Minimax AI, Alpha-Beta AI, comparison engine, and Flask REST endpoints.
 
 ---
 
@@ -28,10 +32,10 @@ Algorithms (DAA)** course.
 - ♟ **Local 2-Player Mode** (Pass & Play) ✅ *(Milestone 2)*
 - 🤖 **Greedy AI Opponent** ✅ *(Milestone 3)*
 - 🌲 **Recursive Minimax AI Opponent** ✅ *(Milestone 4)*
-- ✂️ **Alpha-Beta Pruning** *(Milestone 5 — Next)*
-- 💾 **Memoized Minimax & Transposition Table** *(Milestone 6)*
+- ✂️ **Alpha-Beta Pruning & Comparison Engine** ✅ *(Milestone 5)*
+- 💾 **Memoized Minimax & Transposition Table** *(Milestone 6 — Next)*
 - 📈 **Algorithm Performance Comparison Dashboard** *(Milestone 7)*
-- 🧪 **Complete pytest suite (128 tests passing)** ✅
+- 🧪 **Complete pytest suite (144 tests passing)** ✅
 
 ---
 
@@ -79,15 +83,18 @@ CONNECT-4/
 │   ├── __init__.py         Package exports
 │   ├── evaluation.py       Static heuristic window evaluation and weights
 │   ├── greedy.py           Greedy AI priority decision maker
-│   └── minimax.py          Recursive Minimax AI search & decision tree generator
+│   ├── minimax.py          Recursive Minimax AI search & decision tree generator
+│   ├── alphabeta.py        Alpha-Beta Pruning search & move ordering
+│   └── comparison.py       Automated 3-way algorithm benchmark runner
 ├── benchmarks/             Performance runner (added in Prompt 7)
-├── tests/                  Automated pytest test suite (128 tests)
+├── tests/                  Automated pytest test suite (144 tests)
 │   ├── test_board.py       40 unit tests for Board
 │   ├── test_rules.py       24 unit tests for Rules
 │   ├── test_engine.py      23 unit tests for procedural engine functions
 │   ├── test_greedy.py      14 unit tests for Greedy AI & heuristic scoring
 │   ├── test_minimax.py     12 unit tests for Minimax AI search & statistics
-│   └── test_app.py         15 integration tests for Flask REST endpoints
+│   ├── test_alphabeta.py   13 unit tests for Alpha-Beta pruning & equivalence
+│   └── test_app.py         18 integration tests for Flask REST endpoints
 ├── templates/              Jinja2 HTML templates (base.html, index.html)
 ├── static/                 CSS stylesheet and JavaScript client controller
 └── docs/                   Technical documentation and DAA analysis
