@@ -109,7 +109,8 @@ CONNECT-4/
 │       ├── game.js         Live game controller & AI panel updates
 │       └── dashboard.js    Performance dashboard & Chart.js interactive manager
 └── docs/
-    └── PROJECT_DOCUMENTATION.md  Exhaustive DAA analysis and development log
+    ├── PROJECT_DOCUMENTATION.md  Exhaustive DAA analysis and development log
+    └── TEST_REPORT.md            Comprehensive testing report (173 tests, audits & benchmarks)
 ```
 
 ---
@@ -117,9 +118,10 @@ CONNECT-4/
 ## Documentation
 
 Full technical documentation, DAA concept mapping, complexity analysis,
-and development logs:
+test reports, and development logs:
 
-📄 [`docs/PROJECT_DOCUMENTATION.md`](docs/PROJECT_DOCUMENTATION.md)
+📄 [`docs/PROJECT_DOCUMENTATION.md`](docs/PROJECT_DOCUMENTATION.md) — Exhaustive DAA Analysis and Architecture  
+🧪 [`docs/TEST_REPORT.md`](docs/TEST_REPORT.md) — Comprehensive Test & Evaluation Report (173 Tests, Invariants & Benchmarks)
 
 ---
 
