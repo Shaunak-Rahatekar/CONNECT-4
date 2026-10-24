@@ -1,8 +1,8 @@
 # netlify.toml — Netlify Deployment Configuration for Connect-4 DAA Application
 
 [build]
-  command = "mkdir -p public/static && cp -r static/* public/static/ && pip install -r requirements.txt"
-  publish = "public"
+  command = "pip install -r requirements.txt && python build.py"
+  publish = "build"
   functions = "netlify/functions"
 
 [build.environment]

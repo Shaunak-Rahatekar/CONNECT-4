@@ -30,7 +30,33 @@ This guide outlines how to deploy the Connect-4 Flask application live to [Netli
 
 ## Step-by-Step Deployment Instructions
 
-### Method 1: Connecting Netlify to GitHub (Recommended)
+### Method 1: Manual Drag-and-Drop Deploy via `build/` (Instant, No Git Required)
+
+You can generate a standalone deployment build locally and upload it directly to Netlify:
+
+1. **Run the Build Generator:**
+   In your terminal, execute:
+   ```powershell
+   python build.py
+   ```
+   This will:
+   - Render the complete `build/index.html` from Jinja2 templates.
+   - Bundle all static CSS/JS assets into `build/static/`.
+   - Package the serverless Python functions into `build/.netlify/functions/`.
+   - Generate `build/_redirects` routing static assets to the CDN and API calls to the serverless function.
+
+2. **Open Netlify Drop:**
+   Visit **[app.netlify.com/drop](https://app.netlify.com/drop)** in your web browser.
+
+3. **Drag and Drop:**
+   Drag the local **`build`** folder from File Explorer (`D:\CONNECT-4\build`) and drop it into the Netlify drop zone.
+
+4. **Done!**
+   Netlify will deploy your site in seconds and assign a live URL (e.g., `https://random-name.netlify.app`), which you can rename under **Site configuration**.
+
+---
+
+### Method 2: Connecting Netlify to GitHub (Automated CI/CD)
 
 1. **Log in to Netlify:**
    Visit [app.netlify.com](https://app.netlify.com/) and sign in with your GitHub account.
@@ -49,13 +75,13 @@ This guide outlines how to deploy the Connect-4 Flask application live to [Netli
 4. **Verify Build Settings:**
    Netlify will automatically detect the settings from [`netlify.toml`](../netlify.toml):
    - **Branch to deploy:** `main`
-   - **Build command:** `mkdir -p public/static && cp -r static/* public/static/ && pip install -r requirements.txt`
-   - **Publish directory:** `public`
+   - **Build command:** `pip install -r requirements.txt && python build.py`
+   - **Publish directory:** `build`
    - **Functions directory:** `netlify/functions`
 
 5. **Deploy the Site:**
    - Click **"Deploy CONNECT-4"**.
-   - Netlify will clone the repository, install Python dependencies, configure the serverless function, and provision your live URL (e.g., `https://connect4-daa.netlify.app`).
+   - Netlify will clone the repository, install Python dependencies, execute `python build.py`, and deploy your live application.
 
 ---
 
