@@ -70,13 +70,24 @@ function initDOM() {
     btnReset:           document.getElementById("btn-reset"),
     modeRadios:         Array.from(document.querySelectorAll('input[name="mode"]')),
     aiStrategySelect:   document.getElementById("ai-strategy"),
+    aiDepthInput:       document.getElementById("ai-depth"),
+    depthLabel:         document.getElementById("depth-label"),
+    aiInfo:             document.getElementById("ai-info"),
     aiEmptyState:       document.getElementById("ai-empty-state"),
     aiDataContainer:    document.getElementById("ai-data-container"),
     aiChosenCol:        document.getElementById("ai-chosen-col"),
     aiEvalScore:        document.getElementById("ai-eval-score"),
     aiComputeTime:      document.getElementById("ai-compute-time"),
+    aiMinimaxMetrics:   document.getElementById("ai-minimax-metrics"),
+    aiNodesVisited:     document.getElementById("ai-nodes-visited"),
+    aiRecursiveCalls:   document.getElementById("ai-recursive-calls"),
+    aiMaxDepth:         document.getElementById("ai-max-depth"),
+    aiReasonBox:        document.getElementById("ai-reason-box"),
     aiDecisionReason:   document.getElementById("ai-decision-reason"),
     aiCandidatesGrid:   document.getElementById("ai-candidates-grid"),
+    aiTreeBox:          document.getElementById("ai-tree-box"),
+    aiTreeContainer:    document.getElementById("ai-tree-container"),
+    btnToggleTree:      document.getElementById("btn-toggle-tree"),
     aiActiveBadge:      document.getElementById("ai-active-badge"),
   };
 }
@@ -169,6 +180,21 @@ function renderBoard(grid, winningCells = []) {
 }
 
 /**
+ * Format score for user display, translating depth-aware terminal bounds.
+ * @param {number} score
+ */
+function formatEvalScore(score) {
+  if (score >= 900000) {
+    const d = Math.round((score - 1000000) / 1000);
+    return d > 0 ? `+Win in ${d} ply` : "+Terminal Win";
+  } else if (score <= -900000) {
+    const d = Math.round((-score - 1000000) / 1000);
+    return d > 0 ? `-Loss in ${d} ply` : "-Terminal Loss";
+  }
+  return score > 0 ? `+${score}` : `${score}`;
+}
+
+/**
  * Update the status bar, active player cards, and move counter badge.
  * @param {object} snap  Authoritative board snapshot
  */
@@ -182,16 +208,18 @@ function renderStatus(snap) {
   disc.classList.remove("p1", "p2", "thinking-pulse");
 
   const isHvA = snap.game_mode === "hva";
+  const isMinimax = snap.ai_strategy === "minimax";
+  const aiDisplayName = isMinimax ? "Minimax AI" : "Greedy AI";
 
   // Dynamic names
   const p1Name = isHvA ? "Human (Red)" : "Player 1 (Red)";
-  const p2Name = isHvA ? "Greedy AI (Yellow)" : "Player 2 (Yellow)";
+  const p2Name = isHvA ? `${aiDisplayName} (Yellow)` : "Player 2 (Yellow)";
 
   // Update Roster Card labels
   if (DOM.labelP1 && DOM.labelP2) {
     DOM.labelP1.textContent = isHvA ? "Human" : "Player 1";
     DOM.subP1.textContent = "Red Discs";
-    DOM.labelP2.textContent = isHvA ? "Greedy AI" : "Player 2";
+    DOM.labelP2.textContent = isHvA ? aiDisplayName : "Player 2";
     DOM.subP2.textContent = isHvA ? "Yellow Discs (Python)" : "Yellow Discs";
   }
 
@@ -222,7 +250,7 @@ function renderStatus(snap) {
     badge.textContent = `${snap.move_count} moves played`;
   } else {
     if (isHvA && snap.current_player === 2 && State.isProcessing) {
-      text.textContent = "Greedy AI is thinking...";
+      text.textContent = isMinimax ? "Minimax AI is calculating tree..." : "Greedy AI is thinking...";
       bar.classList.add("p2-turn");
       disc.style.display = "inline-block";
       disc.classList.add("p2", "thinking-pulse");
@@ -247,24 +275,78 @@ function renderAIDecision(snap) {
 
   const decision = snap.ai_decision;
   const isHvA = snap.game_mode === "hva";
+  const isMinimax = snap.ai_strategy === "minimax";
 
   if (!isHvA || !decision) {
     if (DOM.aiEmptyState) DOM.aiEmptyState.classList.remove("hidden");
     if (DOM.aiDataContainer) DOM.aiDataContainer.classList.add("hidden");
     if (DOM.aiActiveBadge) {
-      DOM.aiActiveBadge.textContent = isHvA ? "Greedy AI" : "2-Player";
+      DOM.aiActiveBadge.textContent = isHvA ? (isMinimax ? "Minimax AI" : "Greedy AI") : "2-Player";
     }
     return;
   }
 
   if (DOM.aiEmptyState) DOM.aiEmptyState.classList.add("hidden");
   if (DOM.aiDataContainer) DOM.aiDataContainer.classList.remove("hidden");
-  if (DOM.aiActiveBadge) DOM.aiActiveBadge.textContent = "Greedy Decision";
+
+  const strategy = decision.strategy || snap.ai_strategy || "minimax";
+  if (DOM.aiActiveBadge) {
+    DOM.aiActiveBadge.textContent = strategy === "minimax"
+      ? `Minimax (Depth ${snap.ai_depth || 3})`
+      : "Greedy AI";
+  }
 
   DOM.aiChosenCol.textContent = `Column ${decision.column + 1}`;
-  DOM.aiEvalScore.textContent = decision.score > 0 ? `+${decision.score}` : `${decision.score}`;
+  DOM.aiEvalScore.textContent = formatEvalScore(decision.score);
   DOM.aiComputeTime.textContent = `${decision.execution_time_ms} ms`;
-  DOM.aiDecisionReason.textContent = decision.reason;
+
+  // Strategy specific metrics
+  if (strategy === "minimax") {
+    if (DOM.aiMinimaxMetrics) DOM.aiMinimaxMetrics.classList.remove("hidden");
+    if (DOM.aiReasonBox) DOM.aiReasonBox.classList.add("hidden");
+
+    if (DOM.aiNodesVisited) DOM.aiNodesVisited.textContent = (decision.nodes_visited ?? 0).toLocaleString();
+    if (DOM.aiRecursiveCalls) DOM.aiRecursiveCalls.textContent = (decision.recursive_calls ?? 0).toLocaleString();
+    if (DOM.aiMaxDepth) DOM.aiMaxDepth.textContent = decision.max_depth_reached ?? snap.ai_depth ?? 3;
+
+    // Render Tree Visualizer
+    if (DOM.aiTreeBox && DOM.aiTreeContainer) {
+      DOM.aiTreeBox.classList.remove("hidden");
+      DOM.aiTreeContainer.innerHTML = "";
+
+      const branches = (decision.tree && decision.tree.branches) || [];
+      if (branches.length > 0) {
+        branches.forEach(branch => {
+          const row = document.createElement("div");
+          const branchCol1Based = branch.column ?? (branch.col !== undefined ? branch.col + 1 : 1);
+          const branchCol0Based = branchCol1Based - 1;
+          const isChosen = (branchCol0Based === decision.column);
+          const branchScore = branch.score ?? branch.eval_score ?? 0;
+          row.className = `tree-branch ${isChosen ? "chosen" : ""}`;
+
+          let scoreClass = "tree-score-neutral";
+          if (branchScore > 0) scoreClass = "tree-score-pos";
+          if (branchScore < 0) scoreClass = "tree-score-neg";
+
+          row.innerHTML = `
+            <span class="tree-col-tag">
+              ${isChosen ? "★ " : ""}Col ${branchCol1Based}
+            </span>
+            <span class="tree-score-badge ${scoreClass}">
+              ${formatEvalScore(branchScore)}
+            </span>
+          `;
+          DOM.aiTreeContainer.appendChild(row);
+        });
+      }
+    }
+  } else {
+    // Greedy strategy
+    if (DOM.aiMinimaxMetrics) DOM.aiMinimaxMetrics.classList.add("hidden");
+    if (DOM.aiReasonBox) DOM.aiReasonBox.classList.remove("hidden");
+    if (DOM.aiDecisionReason) DOM.aiDecisionReason.textContent = decision.reason || "Greedy priority";
+    if (DOM.aiTreeBox) DOM.aiTreeBox.classList.add("hidden");
+  }
 
   // Render candidate score pills
   if (DOM.aiCandidatesGrid && decision.candidate_scores) {
@@ -279,7 +361,7 @@ function renderAIDecision(snap) {
       if (score < 0) pill.classList.add("negative");
 
       const mark = col === decision.column ? "★ " : "";
-      pill.textContent = `${mark}Col ${col + 1}: ${score > 0 ? "+" + score : score}`;
+      pill.textContent = `${mark}Col ${col + 1}: ${formatEvalScore(score)}`;
       DOM.aiCandidatesGrid.appendChild(pill);
     });
   }
@@ -357,9 +439,11 @@ function rebuildMoveHistory(history, mode = "hvh") {
   [...history].reverse().forEach(entry => {
     const li = document.createElement("li");
     const playerClass = entry.player === 1 ? "p1-tag" : "p2-tag";
+    const isMinimax = (State.currentSnapshot && State.currentSnapshot.ai_strategy === "minimax");
+    const aiName = isMinimax ? "Minimax AI" : "Greedy AI";
     const playerName  = entry.player === 1
       ? (isHvA ? "Human" : "P1")
-      : (isHvA ? "Greedy AI" : "P2");
+      : (isHvA ? aiName : "P2");
     li.innerHTML = `
       <span class="${playerClass}">#${entry.move_number} ${playerName}</span>
       <span class="move-coord">Col ${entry.col + 1}, Row ${entry.row + 1}</span>
@@ -396,6 +480,23 @@ function applySnapshot(snap) {
     DOM.modeRadios.forEach(r => {
       r.checked = (r.value === snap.game_mode);
     });
+  }
+
+  // Sync AI strategy and depth controls
+  if (DOM.aiStrategySelect && snap.ai_strategy) {
+    DOM.aiStrategySelect.value = snap.ai_strategy;
+  }
+  if (DOM.aiDepthInput) {
+    const isMinimax = (snap.ai_strategy === "minimax");
+    DOM.aiDepthInput.disabled = !isMinimax;
+    if (snap.ai_depth) {
+      DOM.aiDepthInput.value = snap.ai_depth;
+    }
+  }
+  if (DOM.depthLabel) {
+    const depthNames = { 1: "1 (Easy)", 2: "2 (Casual)", 3: "3 (Medium)", 4: "4 (Hard)" };
+    const curDepth = snap.ai_depth || 3;
+    DOM.depthLabel.textContent = depthNames[curDepth] || `${curDepth}`;
   }
 
   renderBoard(snap.grid, snap.winning_cells || []);
@@ -524,9 +625,12 @@ async function sendReset() {
 async function switchMode(newMode) {
   State.isProcessing = false;
   hideAlert();
+  const strategy = DOM.aiStrategySelect ? DOM.aiStrategySelect.value : "minimax";
+  const depth = DOM.aiDepthInput ? parseInt(DOM.aiDepthInput.value, 10) : 3;
+
   const result = await fetchJSON("/api/mode", {
     method: "POST",
-    body: JSON.stringify({ mode: newMode, ai_strategy: "greedy" }),
+    body: JSON.stringify({ mode: newMode, ai_strategy: strategy, depth: depth }),
   });
 
   if (result.ok) {
@@ -535,6 +639,27 @@ async function switchMode(newMode) {
     applySnapshot(result.data);
   } else {
     showAlert("Failed to switch game mode.");
+  }
+}
+
+async function updateAISettings() {
+  State.isProcessing = false;
+  hideAlert();
+  const activeMode = DOM.modeRadios.find(r => r.checked)?.value || "hvh";
+  const strategy = DOM.aiStrategySelect ? DOM.aiStrategySelect.value : "minimax";
+  const depth = DOM.aiDepthInput ? parseInt(DOM.aiDepthInput.value, 10) : 3;
+
+  const result = await fetchJSON("/api/mode", {
+    method: "POST",
+    body: JSON.stringify({ mode: activeMode, ai_strategy: strategy, depth: depth }),
+  });
+
+  if (result.ok) {
+    State.lastPlacedCell = null;
+    clearHoverPreview();
+    applySnapshot(result.data);
+  } else {
+    showAlert("Failed to update AI settings.");
   }
 }
 
@@ -642,6 +767,34 @@ function attachBoardInteractions() {
       }
     });
   });
+
+  // AI Strategy Selector
+  if (DOM.aiStrategySelect) {
+    DOM.aiStrategySelect.addEventListener("change", () => {
+      updateAISettings();
+    });
+  }
+
+  // AI Depth Slider
+  if (DOM.aiDepthInput) {
+    DOM.aiDepthInput.addEventListener("input", () => {
+      const depthNames = { 1: "1 (Easy)", 2: "2 (Casual)", 3: "3 (Medium)", 4: "4 (Hard)" };
+      const val = parseInt(DOM.aiDepthInput.value, 10);
+      if (DOM.depthLabel) DOM.depthLabel.textContent = depthNames[val] || `${val}`;
+    });
+    DOM.aiDepthInput.addEventListener("change", () => {
+      updateAISettings();
+    });
+  }
+
+  // Decision Tree toggle button
+  if (DOM.btnToggleTree && DOM.aiTreeContainer) {
+    DOM.btnToggleTree.addEventListener("click", () => {
+      const isHidden = DOM.aiTreeContainer.classList.toggle("hidden");
+      DOM.btnToggleTree.textContent = isHidden ? "Show Tree" : "Hide Tree";
+      DOM.btnToggleTree.setAttribute("aria-expanded", !isHidden);
+    });
+  }
 }
 
 // ---------------------------------------------------------------------------

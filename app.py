@@ -26,6 +26,7 @@ from flask import Flask, jsonify, render_template, request, session
 from game.board import Board, ROWS, COLS, PLAYER1, PLAYER2
 from game.rules import Rules
 from algorithms.greedy import get_greedy_decision, GreedyDecision
+from algorithms.minimax import get_minimax_decision, MinimaxDecision
 
 app: Flask = Flask(__name__)
 # Secret key enables Flask session cookies.
@@ -40,7 +41,8 @@ _winner: int | None = None
 _winning_cells: list[tuple[int, int]] = []
 _is_draw: bool = False
 _game_mode: str = "hvh"            # "hvh" (local 2-player) or "hva" (human vs AI)
-_ai_strategy: str = "greedy"       # active AI strategy
+_ai_strategy: str = "greedy"       # active AI strategy: "greedy" | "minimax"
+_ai_depth: int = 3                 # search depth limit for Minimax (1-4)
 _ai_player: int = PLAYER2          # AI plays as Player 2 (Yellow)
 _last_ai_decision: dict[str, Any] | None = None
 
@@ -54,6 +56,13 @@ def _reset_state(keep_mode: bool = True) -> None:
     _winning_cells = []
     _is_draw = False
     _last_ai_decision = None
+
+
+def _compute_ai_decision() -> GreedyDecision | MinimaxDecision:
+    """Compute authoritative AI move using currently configured strategy and depth."""
+    if _ai_strategy == "minimax":
+        return get_minimax_decision(_board, depth=_ai_depth, player=_ai_player)
+    return get_greedy_decision(_board, player=_ai_player)
 
 
 def _board_snapshot() -> dict[str, Any]:
@@ -73,6 +82,7 @@ def _board_snapshot() -> dict[str, Any]:
         "move_history": _board.get_move_history(),
         "game_mode": _game_mode,
         "ai_strategy": _ai_strategy,
+        "ai_depth": _ai_depth,
         "ai_player": _ai_player,
         "ai_decision": _last_ai_decision,
     }
@@ -94,12 +104,15 @@ def api_status() -> object:
     return jsonify({
         "status": "ok",
         "application": "Connect-4 DAA",
-        "version": "1.0.0-milestone-3",
+        "version": "1.0.0-milestone-4",
         "python_game_engine": "active",
         "two_player_mode": "complete",
         "supported_modes": ["hvh", "hva"],
+        "supported_strategies": ["greedy", "minimax"],
         "active_ai_strategy": _ai_strategy,
+        "ai_depth": _ai_depth,
         "greedy_ai": "active",
+        "minimax_ai": "active",
     })
 
 
@@ -111,27 +124,32 @@ def api_board() -> object:
 
 @app.route("/api/mode", methods=["POST"])
 def api_mode() -> object:
-    """Configure game mode ('hvh' or 'hva') and AI strategy.
+    """Configure game mode ('hvh' or 'hva'), AI strategy, and search depth.
 
-    Expected JSON body: {"mode": "hvh" | "hva", "ai_strategy": "greedy"}
+    Expected JSON body:
+        {"mode": "hvh" | "hva", "ai_strategy": "greedy" | "minimax", "depth": <1-4>}
     Resets the board to ensure a clean match under the new mode.
     """
-    global _game_mode, _ai_strategy
+    global _game_mode, _ai_strategy, _ai_depth
     data = request.get_json(silent=True) or {}
     new_mode = data.get("mode")
-    new_strategy = data.get("ai_strategy", "greedy")
+    new_strategy = data.get("ai_strategy", _ai_strategy)
+    new_depth = data.get("depth")
 
     if new_mode not in ("hvh", "hva"):
         return jsonify({"error": f"Invalid mode '{new_mode}'. Must be 'hvh' or 'hva'."}), 400
 
     _game_mode = new_mode
-    if new_strategy:
+    if new_strategy in ("greedy", "minimax"):
         _ai_strategy = new_strategy
+
+    if isinstance(new_depth, int) and 1 <= new_depth <= 4:
+        _ai_depth = new_depth
 
     _reset_state(keep_mode=True)
     return jsonify({
         "success": True,
-        "message": f"Game mode set to {_game_mode}.",
+        "message": f"Game mode set to {_game_mode} ({_ai_strategy}, depth {_ai_depth}).",
         **_board_snapshot(),
     })
 
@@ -209,7 +227,7 @@ def api_move() -> object:
 
     # If auto_ai is requested, game continues, and it is AI's turn
     if auto_ai and not _game_over and _game_mode == "hva" and _board.current_player == _ai_player:
-        ai_decision = get_greedy_decision(_board, player=_ai_player)
+        ai_decision = _compute_ai_decision()
         if ai_decision.column is not None:
             ai_row = Rules.apply_move(_board, ai_decision.column)
             _last_ai_decision = ai_decision.to_dict()
@@ -246,7 +264,7 @@ def api_ai_move() -> object:
             **_board_snapshot(),
         }), 400
 
-    decision = get_greedy_decision(_board, player=_ai_player)
+    decision = _compute_ai_decision()
     if decision.column is None:
         return jsonify({
             "error": "No legal moves available for AI.",

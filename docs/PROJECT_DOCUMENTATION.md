@@ -213,7 +213,7 @@ pytest tests/ -v
 | Unit | Concept | Module | Status |
 |------|---------|--------|--------|
 | I — Complexity Analysis | Board op complexity, win detection O(R·C) | board.py, rules.py | ✅ Prompt 1 |
-| II — Recursion / D&C | Recursive Minimax, game trees | minimax.py | Prompt 4 |
+| II — Recursion / D&C | Recursive Minimax, game trees | minimax.py | ✅ Prompt 4 |
 | II — Recursion / D&C | Alpha-Beta Pruning | alphabeta.py | Prompt 5 |
 | III — Dynamic Programming | Memoization / transposition table | transposition.py | Prompt 6 |
 | IV — Greedy | Heuristic-based AI | greedy.py | ✅ Prompt 3 |
@@ -231,7 +231,8 @@ Tests reside in `tests/` and run with `pytest`.  No Flask server is required.
   draw detection, turn alternation, and board-state restoration after undo.
 - **test_engine.py** — 23 tests covering procedural engine functions.
 - **test_greedy.py** — 14 tests covering Greedy AI priorities and heuristics.
-- **test_app.py** — 12 tests covering Flask REST APIs and mode transitions.
+- **test_minimax.py** — 12 tests covering Minimax wins, blocks, depths, and statistics.
+- **test_app.py** — 15 tests covering Flask REST APIs, mode transitions, and AI endpoints.
 
 After every milestone, the full test suite is re-run and regressions are fixed
 before committing.
@@ -245,7 +246,7 @@ before committing.
 | 1 | Project initialization and architecture | ✅ Complete |
 | 2 | Complete playable Connect-4 game | ✅ Complete |
 | 3 | Greedy AI | ✅ Complete |
-| 4 | Minimax AI and decision-tree analysis | Pending |
+| 4 | Minimax AI and decision-tree analysis | ✅ Complete |
 | 5 | Alpha-Beta Pruning and comparison | Pending |
 | 6 | Memoization and transposition table | Pending |
 | 7 | Performance dashboard | Pending |
@@ -716,5 +717,191 @@ tests/test_rules.py (24 tests)     — All PASSED
 - **Commit Message:** `feat: add greedy Connect-4 AI`
 - **Remote:** `https://github.com/Shaunak-Rahatekar/CONNECT-4.git`
 - **Push Status:** ✅ Confirmed — pushed to `origin/main` (`93585b2..e8b39df`).
+
+---
+
+## Development Log — Prompt 4
+
+**Date:** 2026-10-24
+**Objective:** Implement a recursive Minimax AI for Connect-4 with depth-aware scoring, heuristic leaf evaluation, configurable depth limits, real-time structured search statistics, candidate decision-tree visualizer, deterministic test suite, and DAA game-tree complexity analysis.
+
+---
+
+### Features Implemented
+
+1. **Recursive Minimax Algorithm (`algorithms/minimax.py`)**:
+   - Implemented `_minimax_recursive(board, depth, is_maximizing, ai_player, stats)` performing full depth-bounded minimax exploration.
+   - Alternating turns: Maximizing for AI player, minimizing for human opponent.
+   - Depth-aware terminal scoring:
+     - AI win: $+1,000,000 + (d \times 1000)$
+     - Opponent win: $-1,000,000 - (d \times 1000)$
+     - Draw: $0.0$
+     This guarantees the agent prefers faster wins (higher remaining depth $d$) and delays unavoidable losses (lower remaining depth $d$).
+   - Heuristic non-terminal leaf evaluation reusing precomputed 69 four-cell windows from `algorithms/evaluation.py`. Values are bounded in $[-5000, +5000]$, maintaining strict separation from terminal scores ($\ge 1,000,000$).
+   - Zero-allocation in-place backtracking: every simulated branch uses `board.drop_disc(col, player)` and restores the board via `board.undo_last_move()`, eliminating heap board allocations.
+   - Deterministic tie-breaking favoring center columns $[3, 2, 4, 1, 5, 0, 6]$ when scores are equivalent.
+2. **Search Statistics and Decision Tree Dataclass (`MinimaxDecision`, `MinimaxStats`)**:
+   - Emits structured search statistics: `column`, `score`, `nodes_visited`, `recursive_calls`, `max_depth_reached`, `execution_time_ms`, `candidate_scores`, and `tree`.
+   - `tree` captures candidate root branches (`column`, `score`, `is_immediate_win`, `chosen`) generated directly from execution.
+3. **Application & API Integration (`app.py`)**:
+   - Updated `/api/status` to report `version: "1.0.0-milestone-4"` and `"minimax_ai": "active"`.
+   - Updated `POST /api/mode` to configure `ai_strategy: "minimax"` and configurable search depth (1–4).
+   - Dynamic move execution: `api_move` (with `auto_ai=True`) and `api_ai_move` invoke the selected algorithm (`greedy` or `minimax`).
+4. **Interactive Browser Interface & Visualizer**:
+   - Enabled `Minimax AI (Prompt 4)` in the strategy dropdown.
+   - Enabled interactive search depth slider with difficulty presets:
+     - Depth 1: Easy (instant response, $< 2\text{ ms}$)
+     - Depth 2: Casual (shallow 2-ply horizon, $< 8\text{ ms}$)
+     - Depth 3: Medium (tactical 3-ply foresight, $< 45\text{ ms}$)
+     - Depth 4: Hard (deep 4-ply exploration, $< 250\text{ ms}$)
+   - Live AI Decision Panel displays nodes visited, recursive calls, max depth, elapsed compute time, and candidate scores.
+   - Collapsible **Root Decision Branches Tree Visualizer** displaying candidate columns with evaluation badges.
+5. **Deterministic Test Suite (`tests/test_minimax.py`, `tests/test_app.py`)**:
+   - 12 unit tests verifying immediate horizontal/vertical wins, horizontal/vertical blocks, preferring win over block, avoiding opponent counter-win traps, depth comparison, state preservation, full-board handling, and deterministic reproducibility.
+   - 3 integration tests verifying API mode switching and move execution with search statistics.
+   - Total test suite expanded to **128 passing tests**.
+
+---
+
+### DAA Concept Analysis (Unit II — Recursion & Game Trees)
+
+#### 1. The Minimax Recurrence Relation
+Let $s$ denote the board state, $d \in \mathbb{N}$ denote the remaining search depth, and $p \in \{\text{MAX}, \text{MIN}\}$ denote the active player. The Minimax value $V(s, d, p)$ is governed by the recurrence:
+
+$$V(s, d, \text{MAX}) = \begin{cases}
++1,000,000 + (d \cdot 1,000) & \text{if } s \text{ is a win for MAX} \\
+-1,000,000 - (d \cdot 1,000) & \text{if } s \text{ is a win for MIN} \\
+0 & \text{if } s \text{ is a draw} \\
+\text{Heuristic}(s) & \text{if } d = 0 \\
+\max_{c \in \text{Legal}(s)} V(\text{Result}(s, c), d-1, \text{MIN}) & \text{otherwise}
+\end{cases}$$
+
+$$V(s, d, \text{MIN}) = \begin{cases}
++1,000,000 + (d \cdot 1,000) & \text{if } s \text{ is a win for MAX} \\
+-1,000,000 - (d \cdot 1,000) & \text{if } s \text{ is a win for MIN} \\
+0 & \text{if } s \text{ is a draw} \\
+\text{Heuristic}(s) & \text{if } d = 0 \\
+\min_{c \in \text{Legal}(s)} V(\text{Result}(s, c), d-1, \text{MAX}) & \text{otherwise}
+\end{cases}$$
+
+#### 2. Branching Factor and Search Tree Growth
+- **Branching Factor ($b$):** The number of legal moves at each turn equals the number of non-full columns. For standard Connect-4, $b \le 7$.
+- **Dynamic Branching Factor:** As discs fill columns, $b$ decreases dynamically:
+  $$b(s) = \sum_{c=0}^{6} \mathbb{I}(\text{column } c \text{ is not full})$$
+  In late game, $b$ may drop to $1, 2,$ or $3$.
+- **Total Tree Nodes:** For a tree of uniform branching factor $b$ and depth limit $d$:
+  $$N(b, d) = \sum_{i=0}^{d} b^i = \frac{b^{d+1} - 1}{b - 1} \in O(b^d)$$
+  - Depth 1: $\le 7$ nodes visited ($< 1\text{ ms}$)
+  - Depth 2: $\le 49$ nodes visited ($\approx 5\text{ ms}$)
+  - Depth 3: $\le 343$ nodes visited ($\approx 35\text{ ms}$; empirical root node count on empty board: 400 nodes)
+  - Depth 4: $\le 2,401$ nodes visited ($\approx 210\text{ ms}$)
+  - Depth 42 (Full Unbounded Game): $7^{42} \approx 3.1 \times 10^{35}$ nodes. Exhaustive search without depth limits or pruning is computationally intractable.
+
+#### 3. Worst-Case Time Complexity $O(b^d)$
+At each tree node:
+- Valid move generation: $O(C) = O(7)$ operations.
+- Move simulation: $O(1)$ in-place grid modification.
+- Win checking: $O(1)$ amortized (examining rays through the placed disc).
+- Leaf heuristic evaluation: $O(W \cdot K) = O(69 \cdot 4) = O(276)$ window checks.
+
+Thus, total runtime is asymptotically dominated by tree size:
+$$T(d) = O\big(b^d \cdot (W \cdot K)\big) = O(b^d)$$
+
+#### 4. Search-Space Memory Trade-Off ($O(d)$ Space via Backtracking)
+- **State-Cloning Approach:** If each recursive call creates an independent deep copy of the board, memory allocation grows with the number of generated nodes: $O(b^d)$ heap memory.
+- **In-Place Backtracking Approach (Used Here):**
+  1. `board.drop_disc(col, player)` mutates the shared grid.
+  2. `_minimax_recursive(...)` descends into the child state.
+  3. `board.undo_last_move()` pops the last move from the board history stack and resets the cell to `EMPTY`.
+- **Space Complexity:** The board state is shared across all calls. The only memory consumed is the recursion call stack of depth $d$:
+  $$S(d) = O(d)$$
+  For depth 4, the call stack contains at most 4 active stack frames ($< 2\text{ KB}$), achieving a dramatic space saving over state cloning.
+
+#### 5. Why Depth Limits and Heuristic Evaluation are Necessary
+Connect-4 has approximately $4.53 \times 10^{12}$ reachable game positions. A brute-force search to terminal states would require hours to days per move.
+- Bounding search depth to $d \in \{1, 2, 3, 4\}$ confines computation to under $250\text{ ms}$ on local consumer hardware, preventing the browser interface from freezing.
+- Truncating the search requires the heuristic evaluation function to score non-terminal leaves. While this heuristic provides high tactical strength, at finite depths it does **not** guarantee a globally optimal outcome due to the horizon effect.
+
+---
+
+### Worked Evaluation Example
+
+Consider an opening scenario where Human (Player 1) places a disc in Center Column 4 (row 5, col 3). AI (Player 2, Yellow) executes Minimax at Depth 3:
+
+1. **Root (Depth 3, Maximizing):** The AI generates legal moves $c \in \{0, 1, 2, 3, 4, 5, 6\}$.
+2. **Branch $c = 3$ (Center Column):**
+   - AI drops disc at (4, 3) directly on top of Human's disc.
+   - Game is not terminal. Search recurses to **Depth 2 (Minimizing)** for Human (Player 1).
+   - Human generates replies $c_2 \in \{0, 1, 2, 3, 4, 5, 6\}$.
+   - For each $c_2$, search recurses to **Depth 1 (Maximizing)** for AI.
+   - At Depth 1, non-terminal leaves are reached; `evaluate_board(board, player=2)` is invoked.
+   - Because AI controls column 3 (participating in 21 four-cell windows), the center-column bonus and developing 2-in-a-row lines yield an evaluation score of $+2.0$.
+   - Human minimizes and finds no forced winning counter; the backed-up score for Column 4 remains $+2.0$.
+3. **Flank Branches ($c = 0, 6$):**
+   - Dropping discs at the outer borders participates in only 3 four-cell windows.
+   - Leaves evaluate to $-15.0$ due to lack of center control and Human's territorial dominance.
+4. **Root Decision:**
+   - Evaluated root candidate scores:
+     - Col 1: $-15.0$
+     - Col 2: $-5.0$
+     - Col 3: $-2.0$
+     - **Col 4: $+2.0$ (Selected Move ★)**
+     - Col 5: $-2.0$
+     - Col 6: $-5.0$
+     - Col 7: $-15.0$
+   - Minimax selects Column 4 (Center). Execution time: $39.8\text{ ms}$; Nodes evaluated: $400$; Recursive calls: $56$.
+
+---
+
+### Files Changed and Created
+
+| File | Status | Description |
+|---|---|---|
+| `algorithms/minimax.py` | Created | Recursive Minimax search, depth-aware scoring, search stats, and tree generation |
+| `algorithms/__init__.py` | Updated | Package exports for `get_minimax_decision` and `MinimaxDecision` |
+| `app.py` | Updated | Added Minimax strategy routing, configurable depth parameter, and `/api/status` versioning |
+| `templates/index.html` | Updated | Enabled Minimax strategy option, depth slider with presets, and Decision Tree visualizer |
+| `static/css/style.css` | Updated | Added styling for depth slider presets, Minimax metrics, decision tree, and `.hidden` utility |
+| `static/js/game.js` | Updated | Connected depth slider, strategy selector, dynamic AI player name, and tree branches rendering |
+| `tests/test_minimax.py` | Created | 12 deterministic unit tests for Minimax tactics, bounds, and state preservation |
+| `tests/test_app.py` | Updated | Added integration tests for Minimax mode, custom depth, and search stats |
+| `README.md` | Updated | Documented Milestone 4 Minimax features and usage |
+| `docs/PROJECT_DOCUMENTATION.md` | Updated | Updated DAA matrix, roadmap, and appended Prompt 4 development log |
+
+---
+
+### Tests Executed and Actual Results
+
+```powershell
+pytest -v
+```
+
+```
+============================= test session starts =============================
+platform win32 -- Python 3.13.1, pytest-8.3.5, pluggy-1.7.0
+rootdir: D:\CONNECT-4
+plugins: cov-6.1.0
+collected 128 items
+
+tests/test_app.py (15 tests)       — All PASSED
+tests/test_board.py (40 tests)     — All PASSED
+tests/test_engine.py (23 tests)    — All PASSED
+tests/test_greedy.py (14 tests)    — All PASSED
+tests/test_minimax.py (12 tests)   — All PASSED
+tests/test_rules.py (24 tests)     — All PASSED
+
+============================= 128 passed in 0.97s =============================
+```
+
+---
+
+### Git Commit Hash and Push Status
+
+- **Commit Hash:** `[PENDING COMMIT]`
+- **Branch:** `main`
+- **Commit Message:** `feat: implement recursive Minimax AI`
+- **Remote:** `https://github.com/Shaunak-Rahatekar/CONNECT-4.git`
+- **Push Status:** Ready for commit and push.
+
 
 

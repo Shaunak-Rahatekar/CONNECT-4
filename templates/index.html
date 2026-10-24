@@ -17,7 +17,7 @@
       </label>
       <label class="radio-label">
         <input type="radio" name="mode" value="hva" id="mode-hva" />
-        <span>Play vs AI</span> <span class="badge badge-active">Greedy Active</span>
+        <span>Play vs AI</span> <span class="badge badge-active" id="badge-ai-mode">AI Mode</span>
       </label>
     </section>
 
@@ -44,17 +44,25 @@
     <section class="control-group">
       <h3>AI Strategy</h3>
       <select id="ai-strategy" aria-label="AI Strategy Selector">
-        <option value="greedy" selected>Greedy Heuristic (Prompt 3)</option>
-        <option value="minimax" disabled>Minimax (Prompt 4 — Coming Soon)</option>
+        <option value="greedy">Greedy Heuristic (Prompt 3)</option>
+        <option value="minimax" selected>Minimax AI (Prompt 4)</option>
         <option value="alphabeta" disabled>Alpha-Beta (Prompt 5 — Coming Soon)</option>
         <option value="memo" disabled>Memoized Minimax (Prompt 6 — Coming Soon)</option>
       </select>
     </section>
 
-    <section class="control-group">
-      <h3>AI Depth</h3>
-      <input type="range" id="ai-depth" min="1" max="7" value="1" disabled aria-label="AI Depth (Greedy is depth 1)" />
-      <span id="depth-label">1 (Depth-1 Greedy)</span>
+    <section class="control-group" id="depth-group">
+      <div class="depth-title-row">
+        <h3>AI Search Depth</h3>
+        <span id="depth-label" class="badge badge-active">3 (Medium)</span>
+      </div>
+      <input type="range" id="ai-depth" min="1" max="4" value="3" aria-label="Minimax Search Depth: 1 to 4" />
+      <div class="depth-presets">
+        <span class="depth-tag">1: Easy</span>
+        <span class="depth-tag">2: Casual</span>
+        <span class="depth-tag">3: Medium</span>
+        <span class="depth-tag">4: Hard</span>
+      </div>
     </section>
 
     <button id="btn-reset" class="btn btn-primary btn-full" aria-label="Start a new game">
@@ -138,15 +146,15 @@
       </ol>
     </section>
 
-    <!-- AI Decision Panel (Live for Prompt 3) -->
+    <!-- AI Decision Panel (Live for Prompt 3 & Prompt 4) -->
     <section class="info-section">
       <div class="section-header">
         <h2 class="panel-title">AI Decision Panel</h2>
-        <span id="ai-active-badge" class="badge badge-ai">Greedy AI</span>
+        <span id="ai-active-badge" class="badge badge-ai">Minimax AI</span>
       </div>
       <div id="ai-info" class="ai-info" aria-live="polite">
         <div id="ai-empty-state" class="ai-empty-state">
-          <p class="muted">Play against Greedy AI to inspect real-time heuristic evaluations, tactical priorities, and candidate scores.</p>
+          <p class="muted">Play vs AI to inspect real-time heuristic evaluations, Minimax search trees, and candidate move scores.</p>
         </div>
         <div id="ai-data-container" class="ai-data-container hidden">
           <div class="ai-metric-row">
@@ -161,13 +169,42 @@
             <span class="ai-label">Compute Time:</span>
             <span id="ai-compute-time" class="ai-val">0.0 ms</span>
           </div>
-          <div class="ai-reason-box">
+
+          <!-- Minimax-specific metrics -->
+          <div id="ai-minimax-metrics" class="ai-minimax-metrics">
+            <div class="ai-metric-row">
+              <span class="ai-label">Nodes Visited:</span>
+              <span id="ai-nodes-visited" class="ai-val">0</span>
+            </div>
+            <div class="ai-metric-row">
+              <span class="ai-label">Recursive Calls:</span>
+              <span id="ai-recursive-calls" class="ai-val">0</span>
+            </div>
+            <div class="ai-metric-row">
+              <span class="ai-label">Max Depth Reached:</span>
+              <span id="ai-max-depth" class="ai-val">0</span>
+            </div>
+          </div>
+
+          <!-- Greedy tactical reason -->
+          <div id="ai-reason-box" class="ai-reason-box">
             <span class="ai-reason-title">Tactical Priority:</span>
             <p id="ai-decision-reason" class="ai-reason-text">—</p>
           </div>
+
+          <!-- Candidate move scores -->
           <div class="ai-candidates-box">
             <span class="ai-reason-title">Candidate Move Scores:</span>
             <div id="ai-candidates-grid" class="ai-candidates-grid"></div>
+          </div>
+
+          <!-- Decision Tree Branch View -->
+          <div id="ai-tree-box" class="ai-tree-box hidden">
+            <div class="tree-header-row">
+              <span class="ai-reason-title">Root Decision Branches</span>
+              <button id="btn-toggle-tree" type="button" class="btn-tree-toggle" aria-expanded="true">Hide Tree</button>
+            </div>
+            <div id="ai-tree-container" class="ai-tree-container"></div>
           </div>
         </div>
       </div>

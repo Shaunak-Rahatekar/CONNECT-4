@@ -177,3 +177,52 @@ def test_api_move_auto_ai(client):
     assert data["move_count"] == 2
     assert data["current_player"] == PLAYER1
 
+
+def test_api_mode_switch_minimax_with_depth(client):
+    res = client.post("/api/mode", json={"mode": "hva", "ai_strategy": "minimax", "depth": 4})
+    assert res.status_code == 200
+    data = res.get_json()
+    assert data["game_mode"] == "hva"
+    assert data["ai_strategy"] == "minimax"
+    assert data["ai_depth"] == 4
+
+
+def test_api_minimax_move_success(client):
+    # Set mode to hva with minimax at depth 2
+    client.post("/api/mode", json={"mode": "hva", "ai_strategy": "minimax", "depth": 2})
+
+    # P1 plays col 3
+    res_p1 = client.post("/api/move", json={"col": 3})
+    assert res_p1.status_code == 200
+
+    # Request AI move
+    res_ai = client.post("/api/ai-move")
+    assert res_ai.status_code == 200
+    data = res_ai.get_json()
+    assert data["success"] is True
+    assert data["player"] == PLAYER2
+    assert "ai_decision" in data
+    decision = data["ai_decision"]
+    assert decision["strategy"] == "minimax"
+    assert decision["column"] in range(COLS)
+    assert decision["depth"] == 2
+    assert decision["nodes_visited"] > 0
+    assert decision["recursive_calls"] > 0
+    assert decision["max_depth_reached"] >= 1
+    assert "tree" in decision
+    assert len(decision["tree"]["branches"]) == COLS
+
+
+def test_api_minimax_auto_ai(client):
+    # Set mode to hva with minimax at depth 2
+    client.post("/api/mode", json={"mode": "hva", "ai_strategy": "minimax", "depth": 2})
+
+    # Human plays col 3 with auto_ai=True
+    res = client.post("/api/move", json={"col": 3, "auto_ai": True})
+    assert res.status_code == 200
+    data = res.get_json()
+    assert "ai_move" in data
+    assert data["move_count"] == 2
+    assert data["ai_decision"]["strategy"] == "minimax"
+
+
