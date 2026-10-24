@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}Connect-4 — DAA Platform{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+  {% block head_extra %}{% endblock %}
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="header-inner">
+      <h1 class="site-title">
+        <span class="disc p1"></span>
+        Connect&#8209;4
+        <span class="disc p2"></span>
+      </h1>
+      <p class="site-subtitle">AI Game &amp; Algorithm Analysis Platform</p>
+    </div>
+  </header>
+
+  <main class="site-main">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-footer">
+    <p>Design &amp; Analysis of Algorithms — Connect-4 Project</p>
+  </footer>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

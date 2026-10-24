@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}Play — Connect-4 DAA{% endblock %}
+
+{% block content %}
+<div class="game-layout">
+
+  <!-- ── Left panel: controls ────────────────────────────── -->
+  <aside class="panel panel-controls">
+    <h2 class="panel-title">Game Controls</h2>
+
+    <section class="control-group">
+      <h3>Game Mode</h3>
+      <label class="radio-label">
+        <input type="radio" name="mode" value="hvh" checked />
+        Human vs Human
+      </label>
+      <label class="radio-label">
+        <input type="radio" name="mode" value="hva" />
+        Human vs AI <span class="badge coming-soon">Coming Soon</span>
+      </label>
+    </section>
+
+    <section class="control-group">
+      <h3>AI Strategy</h3>
+      <select id="ai-strategy" disabled>
+        <option value="greedy">Greedy (Prompt 3)</option>
+        <option value="minimax">Minimax (Prompt 4)</option>
+        <option value="alphabeta">Alpha-Beta (Prompt 5)</option>
+        <option value="memo">Memoized (Prompt 6)</option>
+      </select>
+    </section>
+
+    <section class="control-group">
+      <h3>AI Depth</h3>
+      <input type="range" id="ai-depth" min="1" max="7" value="4" disabled />
+      <span id="depth-label">4</span>
+    </section>
+
+    <button id="btn-reset" class="btn btn-primary btn-full">
+      ⟳ New Game
+    </button>
+  </aside>
+
+  <!-- ── Centre: game board ──────────────────────────────── -->
+  <section class="panel panel-board">
+
+    <!-- Status bar -->
+    <div id="status-bar" class="status-bar">
+      <span id="status-text">Player 1's turn (Red)</span>
+    </div>
+
+    <!-- Drop-column buttons -->
+    <div id="col-buttons" class="col-buttons">
+      {% for c in range(7) %}
+      <button class="col-btn" data-col="{{ c }}" aria-label="Drop disc in column {{ c + 1 }}">▼</button>
+      {% endfor %}
+    </div>
+
+    <!-- Board grid (populated by JS) -->
+    <div id="board" class="board" role="grid" aria-label="Connect-4 board">
+      {% for row in range(6) %}
+        {% for col in range(7) %}
+        <div
+          class="cell"
+          data-row="{{ row }}"
+          data-col="{{ col }}"
+          role="gridcell"
+          aria-label="Row {{ row + 1 }}, Column {{ col + 1 }}"
+        ></div>
+        {% endfor %}
+      {% endfor %}
+    </div>
+
+    <!-- Column number labels -->
+    <div class="col-labels">
+      {% for c in range(7) %}
+      <span>{{ c + 1 }}</span>
+      {% endfor %}
+    </div>
+
+  </section>
+
+  <!-- ── Right panel: info / move history ───────────────── -->
+  <aside class="panel panel-info">
+
+    <section class="info-section">
+      <h2 class="panel-title">Move History</h2>
+      <ol id="move-history" class="move-history" reversed></ol>
+    </section>
+
+    <section class="info-section">
+      <h2 class="panel-title">AI Decision Info</h2>
+      <div id="ai-info" class="ai-info">
+        <p class="muted">AI decision details will appear here in Prompt 3.</p>
+      </div>
+    </section>
+
+    <section class="info-section">
+      <h2 class="panel-title">Score</h2>
+      <div class="score-board">
+        <div class="score-item">
+          <span class="disc p1 score-disc"></span>
+          <span>Player 1</span>
+          <strong id="score-p1">0</strong>
+        </div>
+        <div class="score-item">
+          <span class="disc p2 score-disc"></span>
+          <span>Player 2</span>
+          <strong id="score-p2">0</strong>
+        </div>
+        <div class="score-item">
+          <span class="draw-icon">½</span>
+          <span>Draws</span>
+          <strong id="score-draw">0</strong>
+        </div>
+      </div>
+    </section>
+
+  </aside>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/game.js') }}"></script>
+{% endblock %}

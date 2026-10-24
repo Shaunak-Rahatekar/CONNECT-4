@@ -1,0 +1,372 @@
+/* ==========================================================================
+   Connect-4 DAA — Main Stylesheet
+   Responsive layout: sidebar | board | sidebar
+   ========================================================================== */
+
+/* ── Reset & root variables ─────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --color-bg:          #0f1117;
+  --color-surface:     #1a1d27;
+  --color-surface-2:   #22263a;
+  --color-border:      #2e3250;
+  --color-text:        #e8eaf6;
+  --color-muted:       #7b82b0;
+  --color-accent:      #5c6bc0;
+  --color-accent-h:    #7986cb;
+
+  --color-p1:          #ef5350;   /* Red  — Player 1 */
+  --color-p1-light:    #ff8a80;
+  --color-p2:          #ffee58;   /* Yellow — Player 2 */
+  --color-p2-light:    #fff9c4;
+
+  --color-board:       #1565c0;   /* Classic blue board frame */
+  --color-cell-bg:     #0d1b2a;
+  --color-cell-hover:  #162840;
+  --color-win-glow:    #a5d6a7;
+
+  --radius-sm:  6px;
+  --radius-md:  12px;
+  --radius-lg:  20px;
+  --radius-full: 50%;
+
+  --shadow-card: 0 4px 24px rgba(0,0,0,.45);
+  --shadow-disc: inset 0 -4px 8px rgba(0,0,0,.4);
+  --trans:       0.18s ease;
+
+  --cell-size:   clamp(52px, 8vw, 76px);
+  --board-cols:  7;
+  --board-rows:  6;
+}
+
+/* ── Base ───────────────────────────────────────────────────────────────── */
+html, body {
+  height: 100%;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.5;
+}
+
+a { color: var(--color-accent-h); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+.site-header {
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  padding: 0.75rem 1.5rem;
+}
+.header-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.site-title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  letter-spacing: 0.03em;
+}
+.site-subtitle {
+  color: var(--color-muted);
+  font-size: 0.85rem;
+}
+
+/* ── Footer ─────────────────────────────────────────────────────────────── */
+.site-footer {
+  text-align: center;
+  padding: 0.75rem;
+  color: var(--color-muted);
+  font-size: 0.78rem;
+  border-top: 1px solid var(--color-border);
+}
+
+/* ── Main layout ─────────────────────────────────────────────────────────── */
+.site-main {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem;
+}
+
+.game-layout {
+  display: grid;
+  grid-template-columns: 220px 1fr 240px;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (max-width: 1024px) {
+  .game-layout {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+  }
+  .panel-board { grid-column: 1 / -1; order: -1; }
+}
+
+@media (max-width: 640px) {
+  .game-layout { grid-template-columns: 1fr; }
+  :root { --cell-size: clamp(40px, 12vw, 60px); }
+}
+
+/* ── Panels ──────────────────────────────────────────────────────────────── */
+.panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  box-shadow: var(--shadow-card);
+}
+
+.panel-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-muted);
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* ── Control panel ───────────────────────────────────────────────────────── */
+.control-group {
+  margin-bottom: 1.1rem;
+}
+.control-group h3 {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-muted);
+  margin-bottom: 0.4rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.radio-label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.88rem;
+  cursor: pointer;
+  padding: 0.2rem 0;
+}
+.radio-label input { accent-color: var(--color-accent); }
+
+select, input[type="range"] {
+  width: 100%;
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.5rem;
+  font-size: 0.85rem;
+}
+select:disabled, input[type="range"]:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.5rem 1.1rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--trans), transform var(--trans);
+}
+.btn:active { transform: scale(0.97); }
+.btn-primary {
+  background: var(--color-accent);
+  color: #fff;
+}
+.btn-primary:hover { background: var(--color-accent-h); }
+.btn-full { width: 100%; margin-top: 0.5rem; }
+
+/* Badge */
+.badge {
+  font-size: 0.65rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  background: var(--color-surface-2);
+  color: var(--color-muted);
+  border: 1px solid var(--color-border);
+  vertical-align: middle;
+}
+
+/* ── Status bar ──────────────────────────────────────────────────────────── */
+.status-bar {
+  text-align: center;
+  background: var(--color-surface-2);
+  border-radius: var(--radius-sm);
+  padding: 0.55rem 1rem;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  font-size: 1rem;
+  letter-spacing: 0.02em;
+  border: 1px solid var(--color-border);
+  min-height: 2.4rem;
+  transition: background var(--trans);
+}
+.status-bar.p1-turn  { border-color: var(--color-p1); color: var(--color-p1); }
+.status-bar.p2-turn  { border-color: var(--color-p2); color: var(--color-p2); }
+.status-bar.p1-win   { background: rgba(239,83,80,.15); border-color: var(--color-p1); color: var(--color-p1-light); }
+.status-bar.p2-win   { background: rgba(255,238,88,.12); border-color: var(--color-p2); color: var(--color-p2-light); }
+.status-bar.draw     { color: var(--color-muted); }
+
+/* ── Column drop buttons ─────────────────────────────────────────────────── */
+.col-buttons {
+  display: grid;
+  grid-template-columns: repeat(var(--board-cols), var(--cell-size));
+  justify-content: center;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+.col-btn {
+  width: var(--cell-size);
+  height: 1.8rem;
+  background: transparent;
+  border: none;
+  color: var(--color-muted);
+  font-size: 1rem;
+  cursor: pointer;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  transition: color var(--trans), background var(--trans);
+}
+.col-btn:hover { color: var(--color-accent-h); background: var(--color-surface-2); }
+.col-btn:disabled { opacity: 0.25; cursor: not-allowed; }
+
+/* ── Board ───────────────────────────────────────────────────────────────── */
+.board {
+  display: grid;
+  grid-template-columns: repeat(var(--board-cols), var(--cell-size));
+  grid-template-rows:    repeat(var(--board-rows), var(--cell-size));
+  justify-content: center;
+  gap: 4px;
+  background: var(--color-board);
+  padding: 8px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+}
+
+.cell {
+  width: var(--cell-size);
+  height: var(--cell-size);
+  background: var(--color-cell-bg);
+  border-radius: var(--radius-full);
+  transition: background var(--trans), box-shadow var(--trans);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Player discs */
+.cell.p1 { background: var(--color-p1); box-shadow: var(--shadow-disc); }
+.cell.p2 { background: var(--color-p2); box-shadow: var(--shadow-disc); }
+
+/* Winning cells glow */
+.cell.winning {
+  box-shadow: 0 0 0 3px var(--color-win-glow),
+              0 0 16px 4px var(--color-win-glow),
+              var(--shadow-disc);
+  animation: pulse-win 0.9s ease-in-out infinite alternate;
+}
+
+@keyframes pulse-win {
+  from { box-shadow: 0 0 0 3px var(--color-win-glow), 0 0 16px 4px var(--color-win-glow); }
+  to   { box-shadow: 0 0 0 5px var(--color-win-glow), 0 0 28px 8px var(--color-win-glow); }
+}
+
+/* Drop animation */
+@keyframes drop-in {
+  from { transform: translateY(-300%); opacity: 0.6; }
+  to   { transform: translateY(0);      opacity: 1; }
+}
+.cell.dropped { animation: drop-in 0.22s cubic-bezier(.22,.68,0,1.2) forwards; }
+
+/* Column hover preview */
+.cell.hover-preview { background: var(--color-cell-hover); }
+
+/* ── Column labels ───────────────────────────────────────────────────────── */
+.col-labels {
+  display: grid;
+  grid-template-columns: repeat(var(--board-cols), var(--cell-size));
+  justify-content: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+.col-labels span {
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--color-muted);
+}
+
+/* ── Info panel ──────────────────────────────────────────────────────────── */
+.info-section { margin-bottom: 1.1rem; }
+
+.move-history {
+  max-height: 200px;
+  overflow-y: auto;
+  font-size: 0.82rem;
+  color: var(--color-muted);
+  padding-left: 1.2rem;
+}
+.move-history li { padding: 0.15rem 0; }
+.move-history li .p1-tag { color: var(--color-p1); font-weight: 600; }
+.move-history li .p2-tag { color: var(--color-p2); font-weight: 600; }
+
+.ai-info {
+  font-size: 0.82rem;
+  color: var(--color-muted);
+}
+.ai-info .muted { font-style: italic; }
+
+/* Score board */
+.score-board {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.score-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.88rem;
+}
+.score-item strong {
+  margin-left: auto;
+  font-size: 1.1rem;
+  color: var(--color-text);
+}
+.draw-icon {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  color: var(--color-muted);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-full);
+}
+
+/* ── Disc decorators (header & score) ────────────────────────────────────── */
+.disc {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-full);
+}
+.disc.p1 { background: var(--color-p1); }
+.disc.p2 { background: var(--color-p2); }
+.score-disc { width: 22px; height: 22px; }
+
+/* ── Scrollbar styling ───────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--color-surface); }
+::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 3px; }
