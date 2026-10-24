@@ -70,6 +70,13 @@
           <span>Move Ordering (Optimized)</span>
         </label>
       </div>
+
+      <div class="ordering-container" id="tt-container">
+        <label class="checkbox-label" for="ai-transposition-table">
+          <input type="checkbox" id="ai-transposition-table" checked />
+          <span>Transposition Table (Cache)</span>
+        </label>
+      </div>
     </section>
 
     <button id="btn-reset" class="btn btn-primary btn-full" aria-label="Start a new game">
@@ -190,6 +197,14 @@
             <div class="ai-metric-row" id="row-cutoffs">
               <span class="ai-label">Branch Cutoffs (α/β):</span>
               <span id="ai-cutoffs" class="ai-val">0</span>
+            </div>
+            <div class="ai-metric-row" id="row-cache-stats">
+              <span class="ai-label">TT Cache Hits:</span>
+              <span id="ai-cache-hits" class="ai-val">0 (0.0%)</span>
+            </div>
+            <div class="ai-metric-row" id="row-tt-mem">
+              <span class="ai-label">TT Memory (Est):</span>
+              <span id="ai-tt-memory" class="ai-val">0.0 KB</span>
             </div>
             <div class="ai-metric-row">
               <span class="ai-label">Max Depth Reached:</span>

@@ -22,6 +22,12 @@ from algorithms.alphabeta import (
     get_alphabeta_decision,
     AlphaBetaDecision,
 )
+from algorithms.transposition_table import (
+    TranspositionTable,
+    EntryType,
+    TTEntry,
+    get_global_transposition_table,
+)
 from algorithms.evaluation import (
     evaluate_board,
     HeuristicWeights,
@@ -38,7 +44,12 @@ __all__ = [
     "choose_alphabeta_move",
     "get_alphabeta_decision",
     "AlphaBetaDecision",
+    "TranspositionTable",
+    "EntryType",
+    "TTEntry",
+    "get_global_transposition_table",
     "evaluate_board",
     "HeuristicWeights",
     "DEFAULT_WEIGHTS",
 ]
+

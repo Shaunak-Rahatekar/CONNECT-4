@@ -45,8 +45,9 @@ _is_draw: bool = False
 _game_mode: str = "hvh"            # "hvh" (local 2-player) or "hva" (human vs AI)
 _ai_strategy: str = "alphabeta"    # active AI strategy: "greedy" | "minimax" | "alphabeta"
 _ai_depth: int = 3                 # search depth limit (1-5)
-_use_move_ordering: bool = True    # enable move ordering optimization for Alpha-Beta
-_ai_player: int = PLAYER2          # AI plays as Player 2 (Yellow)
+_use_move_ordering: bool = True       # enable move ordering optimization for Alpha-Beta
+_use_transposition_table: bool = True  # enable memoization via transposition table
+_ai_player: int = PLAYER2             # AI plays as Player 2 (Yellow)
 _last_ai_decision: dict[str, Any] | None = None
 
 
@@ -69,6 +70,7 @@ def _compute_ai_decision() -> GreedyDecision | MinimaxDecision | AlphaBetaDecisi
             depth=_ai_depth,
             player=_ai_player,
             use_move_ordering=_use_move_ordering,
+            use_transposition_table=_use_transposition_table,
         )
     elif _ai_strategy == "minimax":
         return get_minimax_decision(_board, depth=_ai_depth, player=_ai_player)
@@ -94,6 +96,7 @@ def _board_snapshot() -> dict[str, Any]:
         "ai_strategy": _ai_strategy,
         "ai_depth": _ai_depth,
         "use_move_ordering": _use_move_ordering,
+        "use_transposition_table": _use_transposition_table,
         "ai_player": _ai_player,
         "ai_decision": _last_ai_decision,
     }
@@ -115,7 +118,7 @@ def api_status() -> object:
     return jsonify({
         "status": "ok",
         "application": "Connect-4 DAA",
-        "version": "1.0.0-milestone-5",
+        "version": "1.0.0-milestone-6",
         "python_game_engine": "active",
         "two_player_mode": "complete",
         "supported_modes": ["hvh", "hva"],
@@ -123,9 +126,11 @@ def api_status() -> object:
         "active_ai_strategy": _ai_strategy,
         "ai_depth": _ai_depth,
         "use_move_ordering": _use_move_ordering,
+        "use_transposition_table": _use_transposition_table,
         "greedy_ai": "active",
         "minimax_ai": "active",
         "alphabeta_ai": "active",
+        "transposition_table": "active",
     })
 
 
@@ -137,18 +142,19 @@ def api_board() -> object:
 
 @app.route("/api/mode", methods=["POST"])
 def api_mode() -> object:
-    """Configure game mode ('hvh' or 'hva'), AI strategy, and search depth.
+    """Configure game mode ('hvh' or 'hva'), AI strategy, search depth, move ordering, and caching.
 
     Expected JSON body:
-        {"mode": "hvh" | "hva", "ai_strategy": "greedy" | "minimax" | "alphabeta", "depth": <1-5>, "use_move_ordering": <bool>}
+        {"mode": "hvh" | "hva", "ai_strategy": "greedy" | "minimax" | "alphabeta", "depth": <1-5>, "use_move_ordering": <bool>, "use_transposition_table": <bool>}
     Resets the board to ensure a clean match under the new mode.
     """
-    global _game_mode, _ai_strategy, _ai_depth, _use_move_ordering
+    global _game_mode, _ai_strategy, _ai_depth, _use_move_ordering, _use_transposition_table
     data = request.get_json(silent=True) or {}
     new_mode = data.get("mode")
     new_strategy = data.get("ai_strategy", _ai_strategy)
     new_depth = data.get("depth")
     new_ordering = data.get("use_move_ordering")
+    new_tt = data.get("use_transposition_table")
 
     if new_mode not in ("hvh", "hva"):
         return jsonify({"error": f"Invalid mode '{new_mode}'. Must be 'hvh' or 'hva'."}), 400
@@ -162,6 +168,9 @@ def api_mode() -> object:
 
     if isinstance(new_ordering, bool):
         _use_move_ordering = new_ordering
+
+    if isinstance(new_tt, bool):
+        _use_transposition_table = new_tt
 
     _reset_state(keep_mode=True)
     return jsonify({

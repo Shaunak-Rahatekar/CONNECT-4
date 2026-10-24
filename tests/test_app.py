@@ -37,8 +37,11 @@ def test_api_status(client):
     assert response.status_code == 200
     data = response.get_json()
     assert data["status"] == "ok"
+    assert data["version"] == "1.0.0-milestone-6"
     assert data["python_game_engine"] == "active"
     assert data["two_player_mode"] == "complete"
+    assert data["transposition_table"] == "active"
+
 
 
 def test_api_board_initial(client):
@@ -275,6 +278,34 @@ def test_api_compare_endpoint(client):
     assert "minimax" in data["algorithms"]
     assert "alphabeta_no_ordering" in data["algorithms"]
     assert "alphabeta_with_ordering" in data["algorithms"]
+    assert "alphabeta_with_tt" in data["algorithms"]
+    tt_report = data["algorithms"]["alphabeta_with_tt"]
+    assert "cache_hits" in tt_report
+    assert "hit_rate_pct" in tt_report
+    assert "memory_kb" in tt_report
+
+
+def test_api_mode_switch_transposition_table(client):
+    res = client.post("/api/mode", json={
+        "mode": "hva",
+        "ai_strategy": "alphabeta",
+        "depth": 3,
+        "use_move_ordering": True,
+        "use_transposition_table": False,
+    })
+    assert res.status_code == 200
+    data = res.get_json()
+    assert data["use_transposition_table"] is False
+
+    # Switch back on
+    res2 = client.post("/api/mode", json={
+        "mode": "hva",
+        "use_transposition_table": True,
+    })
+    assert res2.status_code == 200
+    data2 = res2.get_json()
+    assert data2["use_transposition_table"] is True
+
 
 
 

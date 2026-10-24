@@ -91,8 +91,14 @@ function initDOM() {
     aiActiveBadge:      document.getElementById("ai-active-badge"),
     aiMoveOrdering:     document.getElementById("ai-move-ordering"),
     orderingContainer:  document.getElementById("ordering-container"),
+    aiTTCheckbox:       document.getElementById("ai-transposition-table"),
+    ttContainer:        document.getElementById("tt-container"),
     aiCutoffs:          document.getElementById("ai-cutoffs"),
     rowCutoffs:         document.getElementById("row-cutoffs"),
+    rowCacheStats:      document.getElementById("row-cache-stats"),
+    aiCacheHits:        document.getElementById("ai-cache-hits"),
+    rowTTMem:           document.getElementById("row-tt-mem"),
+    aiTTMemory:         document.getElementById("ai-tt-memory"),
     btnCompare:         document.getElementById("btn-compare-algorithms"),
     comparisonModal:    document.getElementById("comparison-modal"),
     btnCloseComp:       document.getElementById("btn-close-comp"),
@@ -345,6 +351,22 @@ function renderAIDecision(snap) {
       }
     }
 
+    if (DOM.rowCacheStats && DOM.rowTTMem) {
+      if (strategy === "alphabeta" && snap.use_transposition_table !== false) {
+        DOM.rowCacheStats.classList.remove("hidden");
+        DOM.rowTTMem.classList.remove("hidden");
+        if (DOM.aiCacheHits) {
+          DOM.aiCacheHits.textContent = `${decision.cache_hits ?? 0} (${decision.hit_rate_pct ?? 0}%)`;
+        }
+        if (DOM.aiTTMemory) {
+          DOM.aiTTMemory.textContent = `${(decision.tt_memory_kb ?? 0).toFixed(1)} KB (est)`;
+        }
+      } else {
+        DOM.rowCacheStats.classList.add("hidden");
+        DOM.rowTTMem.classList.add("hidden");
+      }
+    }
+
     // Render Tree Visualizer
     if (DOM.aiTreeBox && DOM.aiTreeContainer) {
       DOM.aiTreeBox.classList.remove("hidden");
@@ -534,8 +556,14 @@ function applySnapshot(snap) {
   if (DOM.orderingContainer) {
     DOM.orderingContainer.classList.toggle("hidden", snap.ai_strategy !== "alphabeta");
   }
+  if (DOM.ttContainer) {
+    DOM.ttContainer.classList.toggle("hidden", snap.ai_strategy !== "alphabeta");
+  }
   if (DOM.aiMoveOrdering) {
     DOM.aiMoveOrdering.checked = (snap.use_move_ordering !== false);
+  }
+  if (DOM.aiTTCheckbox) {
+    DOM.aiTTCheckbox.checked = (snap.use_transposition_table !== false);
   }
   if (DOM.depthLabel) {
     const depthNames = { 1: "1 (Easy)", 2: "2 (Casual)", 3: "3 (Medium)", 4: "4 (Hard)" };
@@ -672,6 +700,7 @@ async function switchMode(newMode) {
   const strategy = DOM.aiStrategySelect ? DOM.aiStrategySelect.value : "alphabeta";
   const depth = DOM.aiDepthInput ? parseInt(DOM.aiDepthInput.value, 10) : 3;
   const useOrdering = DOM.aiMoveOrdering ? DOM.aiMoveOrdering.checked : true;
+  const useTT = DOM.aiTTCheckbox ? DOM.aiTTCheckbox.checked : true;
 
   const result = await fetchJSON("/api/mode", {
     method: "POST",
@@ -680,6 +709,7 @@ async function switchMode(newMode) {
       ai_strategy: strategy,
       depth: depth,
       use_move_ordering: useOrdering,
+      use_transposition_table: useTT,
     }),
   });
 
@@ -699,6 +729,7 @@ async function updateAISettings() {
   const strategy = DOM.aiStrategySelect ? DOM.aiStrategySelect.value : "alphabeta";
   const depth = DOM.aiDepthInput ? parseInt(DOM.aiDepthInput.value, 10) : 3;
   const useOrdering = DOM.aiMoveOrdering ? DOM.aiMoveOrdering.checked : true;
+  const useTT = DOM.aiTTCheckbox ? DOM.aiTTCheckbox.checked : true;
 
   const result = await fetchJSON("/api/mode", {
     method: "POST",
@@ -707,6 +738,7 @@ async function updateAISettings() {
       ai_strategy: strategy,
       depth: depth,
       use_move_ordering: useOrdering,
+      use_transposition_table: useTT,
     }),
   });
 
@@ -859,6 +891,13 @@ function attachBoardInteractions() {
     });
   }
 
+  // Transposition Table toggle
+  if (DOM.aiTTCheckbox) {
+    DOM.aiTTCheckbox.addEventListener("change", () => {
+      updateAISettings();
+    });
+  }
+
   // Benchmark Comparison Modal triggers
   if (DOM.btnCompare) {
     DOM.btnCompare.addEventListener("click", () => {
@@ -949,6 +988,7 @@ function renderComparisonTable(report) {
   const mm = algs.minimax;
   const abNo = algs.alphabeta_no_ordering;
   const abOrd = algs.alphabeta_with_ordering;
+  const abTT = algs.alphabeta_with_tt;
 
   const rows = [
     {
@@ -965,20 +1005,33 @@ function renderComparisonTable(report) {
     },
     {
       data: abOrd,
-      tag: "Move Ordering",
+      tag: "No Cache",
       badgeClass: abOrd.node_reduction_pct >= 40 ? "reduction-high" : (abOrd.node_reduction_pct > 0 ? "reduction-mid" : "reduction-zero"),
       badgeText: `${abOrd.node_reduction_pct}% reduction (${abOrd.speedup_ratio}x speedup)`,
     },
   ];
+
+  if (abTT) {
+    rows.push({
+      data: abTT,
+      tag: "With Cache",
+      badgeClass: "reduction-high",
+      badgeText: `${abTT.node_reduction_pct}% total reduction (${abTT.speedup_ratio}x speedup)`,
+    });
+  }
 
   let html = "";
   rows.forEach(r => {
     const d = r.data;
     const colStr = d.column_1based ? `Col ${d.column_1based}` : "—";
     const scoreStr = formatEvalScore(d.score);
+    const isTT = (d === abTT);
     html += `
-      <tr>
-        <td><strong>${d.name}</strong></td>
+      <tr class="${isTT ? 'comp-row-highlight' : ''}">
+        <td>
+          <strong>${d.name}</strong>
+          ${isTT && d.cache_hits ? `<div style="font-size:0.72rem; color:var(--color-p2-light);">Hits: ${d.cache_hits} (${d.hit_rate_pct}%) · Mem: ${d.memory_kb} KB</div>` : ''}
+        </td>
         <td class="comp-col-highlight">${colStr}</td>
         <td>${scoreStr}</td>
         <td>${d.nodes_visited.toLocaleString()}</td>
@@ -995,8 +1048,18 @@ function renderComparisonTable(report) {
     const scoreMatch = report.scores_match;
     const matchIcon = scoreMatch ? "✓" : "⚠️";
     const matchText = scoreMatch
-      ? "All configurations produced identical optimal subgame evaluations, proving Alpha-Beta Pruning strictly preserves the Minimax theorem."
+      ? "All configurations produced identical optimal subgame evaluations, proving Alpha-Beta Pruning with Transposition Table strictly preserves the Minimax theorem."
       : "Score deviation detected — verify branch exploration parameters.";
+
+    let ttInsights = "";
+    if (abTT) {
+      ttInsights = `
+        <div style="margin-top: 0.4rem; padding-top: 0.4rem; border-top: 1px dashed var(--color-border);">
+          <strong>💾 Transposition Table Memoization:</strong> The cache recorded 
+          <strong>${abTT.cache_hits} hits</strong> (${abTT.hit_rate_pct}% hit rate) on duplicate transpositions, consuming ~<strong>${abTT.memory_kb} KB</strong> memory (est.) and pruning redundant subproblems.
+        </div>
+      `;
+    }
 
     DOM.compInsights.innerHTML = `
       <div style="margin-bottom: 0.4rem;">
@@ -1009,8 +1072,9 @@ function renderComparisonTable(report) {
       <div>
         <strong>🎯 Move Ordering Impact:</strong> Exploring immediate tactical threats and center columns first increased cutoffs from 
         <strong>${abNo.cutoffs}</strong> to <strong>${abOrd.cutoffs}</strong>, achieving 
-        <strong>${abOrd.node_reduction_pct}%</strong> total node reduction and a <strong>${abOrd.speedup_ratio}x</strong> speedup.
+        <strong>${abOrd.node_reduction_pct}%</strong> node reduction vs unpruned Minimax.
       </div>
+      ${ttInsights}
     `;
   }
 }
