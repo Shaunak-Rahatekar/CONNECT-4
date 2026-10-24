@@ -54,16 +54,19 @@ def _reset_state() -> None:
 
 def _board_snapshot() -> dict:
     """Return a JSON-serialisable dictionary of the current game state."""
+    win_status = "win" if _winner else ("draw" if _is_draw else "in_progress")
+    valid_cols = [] if _game_over else _board.get_valid_columns()
     return {
         "grid": _board.to_list(),
         "current_player": _board.current_player,
         "move_count": _board.move_count,
-        "valid_columns": _board.get_valid_columns(),
+        "valid_columns": valid_cols,
         "game_over": _game_over,
         "winner": _winner,
         "winning_cells": _winning_cells,
         "is_draw": _is_draw,
-        "move_history": _move_history,
+        "status": win_status,
+        "move_history": _board.get_move_history(),
     }
 
 
@@ -83,8 +86,9 @@ def api_status() -> object:
     return jsonify({
         "status": "ok",
         "application": "Connect-4 DAA",
-        "version": "1.0.0-milestone-1",
+        "version": "1.0.0-milestone-2",
         "python_game_engine": "active",
+        "two_player_mode": "complete",
     })
 
 
@@ -103,32 +107,44 @@ def api_reset() -> object:
 
 @app.route("/api/move", methods=["POST"])
 def api_move() -> object:
-    """Apply a human player move.
+    """Apply an authoritative human player move.
 
     Expected JSON body: {"col": <int 0-6>}
 
     Returns the updated board state plus move metadata.
-    Error cases return HTTP 400 with an error message.
+    Error cases return HTTP 400 with an authoritative error message.
     """
     global _game_over, _winner, _winning_cells, _is_draw
 
     if _game_over:
-        return jsonify({"error": "Game is already over. Reset to play again."}), 400
+        return jsonify({
+            "error": "The game has ended. Click 'New Game' to play again.",
+            **_board_snapshot(),
+        }), 400
 
     data = request.get_json(silent=True) or {}
     col = data.get("col")
 
-    if col is None or not isinstance(col, int):
-        return jsonify({"error": "Missing or invalid 'col' field."}), 400
+    if col is None or not isinstance(col, int) or col < 0 or col >= 7:
+        return jsonify({
+            "error": f"Invalid column: '{col}'. Column must be an integer between 1 and 7.",
+            **_board_snapshot(),
+        }), 400
 
     if not _board.is_valid_column(col):
-        return jsonify({"error": f"Column {col} is full or out of range."}), 400
+        return jsonify({
+            "error": f"Column {col + 1} is completely full! Choose another column.",
+            **_board_snapshot(),
+        }), 400
 
     player = _board.current_player
     row = Rules.apply_move(_board, col)
 
     if row is None:
-        return jsonify({"error": "Move could not be applied."}), 400
+        return jsonify({
+            "error": "Move could not be applied by the game engine.",
+            **_board_snapshot(),
+        }), 400
 
     # Record history entry
     _move_history.append({

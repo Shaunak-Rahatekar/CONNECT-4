@@ -100,9 +100,10 @@ class Rules:
         for dr, dc in _DIRECTIONS:
             cells = Rules._collect_line(board, row, col, dr, dc)
             if len(cells) >= 4:
+                cells.sort(key=lambda pt: (pt[0], pt[1]))
                 return GameState(
                     winner=player,
-                    winning_cells=cells[:4],  # first four of the run
+                    winning_cells=cells[:4],  # first four in line order
                     is_draw=False,
                 )
         return None

@@ -52,6 +52,8 @@ class Board:
         self.move_count: int = 0
         # History stored as list of (column, row) tuples for undo support.
         self._history: list[tuple[int, int]] = []
+        # Detailed move history with player, coordinates, and move sequence.
+        self.move_history: list[dict] = []
 
     # ------------------------------------------------------------------
     # Public API
@@ -102,6 +104,12 @@ class Board:
         self.grid[row][col] = player
         self._history.append((col, row))
         self.move_count += 1
+        self.move_history.append({
+            "move_number": self.move_count,
+            "player": player,
+            "col": col,
+            "row": row,
+        })
         return row
 
     def undo_last_move(self) -> tuple[int, int] | None:
@@ -116,6 +124,8 @@ class Board:
         col, row = self._history.pop()
         self.grid[row][col] = EMPTY
         self.move_count -= 1
+        if self.move_history:
+            self.move_history.pop()
         return col, row
 
     def switch_player(self) -> None:
@@ -134,6 +144,7 @@ class Board:
         self.current_player = PLAYER1
         self.move_count = 0
         self._history.clear()
+        self.move_history.clear()
 
     def copy(self) -> "Board":
         """Return a deep copy of this board.  O(ROWS × COLS).
@@ -145,7 +156,12 @@ class Board:
         new_board.current_player = self.current_player
         new_board.move_count = self.move_count
         new_board._history = self._history[:]
+        new_board.move_history = [dict(entry) for entry in self.move_history]
         return new_board
+
+    def get_move_history(self) -> list[dict]:
+        """Return a copy of the move history recorded so far.  O(N)."""
+        return [dict(entry) for entry in self.move_history]
 
     def to_tuple(self) -> tuple:
         """Return an immutable, hashable representation of the grid.

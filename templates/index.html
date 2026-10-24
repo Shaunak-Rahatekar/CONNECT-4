@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Play — Connect-4 DAA{% endblock %}
+{% block title %}Play Connect-4 — Local Two-Player{% endblock %}
 
 {% block content %}
 <div class="game-layout">
@@ -13,17 +13,37 @@
       <h3>Game Mode</h3>
       <label class="radio-label">
         <input type="radio" name="mode" value="hvh" checked />
-        Human vs Human
+        <span>Local 2-Player (Pass & Play)</span>
       </label>
       <label class="radio-label">
-        <input type="radio" name="mode" value="hva" />
-        Human vs AI <span class="badge coming-soon">Coming Soon</span>
+        <input type="radio" name="mode" value="hva" disabled />
+        <span>Human vs AI</span> <span class="badge coming-soon">Prompt 3</span>
       </label>
     </section>
 
     <section class="control-group">
+      <h3>Active Players</h3>
+      <div class="player-roster">
+        <div class="player-card active-card" id="card-p1">
+          <span class="disc p1 score-disc"></span>
+          <div class="player-meta">
+            <strong>Player 1</strong>
+            <small>Red Discs</small>
+          </div>
+        </div>
+        <div class="player-card" id="card-p2">
+          <span class="disc p2 score-disc"></span>
+          <div class="player-meta">
+            <strong>Player 2</strong>
+            <small>Yellow Discs</small>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="control-group">
       <h3>AI Strategy</h3>
-      <select id="ai-strategy" disabled>
+      <select id="ai-strategy" disabled aria-label="AI Strategy (disabled in 2-player mode)">
         <option value="greedy">Greedy (Prompt 3)</option>
         <option value="minimax">Minimax (Prompt 4)</option>
         <option value="alphabeta">Alpha-Beta (Prompt 5)</option>
@@ -33,11 +53,11 @@
 
     <section class="control-group">
       <h3>AI Depth</h3>
-      <input type="range" id="ai-depth" min="1" max="7" value="4" disabled />
+      <input type="range" id="ai-depth" min="1" max="7" value="4" disabled aria-label="AI Depth (disabled in 2-player mode)" />
       <span id="depth-label">4</span>
     </section>
 
-    <button id="btn-reset" class="btn btn-primary btn-full">
+    <button id="btn-reset" class="btn btn-primary btn-full" aria-label="Start a new game">
       ⟳ New Game
     </button>
   </aside>
@@ -45,38 +65,62 @@
   <!-- ── Centre: game board ──────────────────────────────── -->
   <section class="panel panel-board">
 
-    <!-- Status bar -->
-    <div id="status-bar" class="status-bar">
+    <!-- Alert / Feedback banner for invalid moves -->
+    <div id="alert-banner" class="alert-banner hidden" role="alert" aria-live="assertive"></div>
+
+    <!-- Status bar with active turn indicator -->
+    <div id="status-bar" class="status-bar p1-turn" role="status" aria-live="polite">
+      <span class="turn-disc p1" id="status-disc" aria-hidden="true"></span>
       <span id="status-text">Player 1's turn (Red)</span>
+      <span id="move-badge" class="badge move-badge">Move 1</span>
     </div>
 
     <!-- Drop-column buttons -->
     <div id="col-buttons" class="col-buttons">
       {% for c in range(7) %}
-      <button class="col-btn" data-col="{{ c }}" aria-label="Drop disc in column {{ c + 1 }}">▼</button>
+      <button class="col-btn" data-col="{{ c }}" id="col-btn-{{ c }}" aria-label="Drop disc in column {{ c + 1 }}">
+        <span class="arrow-icon">▼</span>
+      </button>
       {% endfor %}
     </div>
 
-    <!-- Board grid (populated by JS) -->
-    <div id="board" class="board" role="grid" aria-label="Connect-4 board">
+    <!-- Board grid (interactive clickable columns) -->
+    <div id="board" class="board" role="grid" aria-label="Connect-4 board, 6 rows by 7 columns">
       {% for row in range(6) %}
         {% for col in range(7) %}
         <div
           class="cell"
+          id="cell-{{ row }}-{{ col }}"
           data-row="{{ row }}"
           data-col="{{ col }}"
           role="gridcell"
-          aria-label="Row {{ row + 1 }}, Column {{ col + 1 }}"
+          tabindex="0"
+          aria-label="Row {{ row + 1 }}, Column {{ col + 1 }}: empty"
         ></div>
         {% endfor %}
       {% endfor %}
     </div>
 
     <!-- Column number labels -->
-    <div class="col-labels">
+    <div class="col-labels" aria-hidden="true">
       {% for c in range(7) %}
-      <span>{{ c + 1 }}</span>
+      <span>Col {{ c + 1 }}</span>
       {% endfor %}
+    </div>
+
+    <!-- Interactive Game Over Celebratory Overlay Card -->
+    <div id="game-over-modal" class="game-over-modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-card">
+        <div id="modal-badge" class="modal-disc p1"></div>
+        <h3 id="modal-title" class="modal-title">Player 1 Wins!</h3>
+        <p id="modal-subtitle" class="modal-subtitle">Connected 4 in a row</p>
+        <div class="modal-stats">
+          <span id="modal-move-count">Completed in 14 moves</span>
+        </div>
+        <button id="modal-btn-reset" class="btn btn-primary btn-modal" aria-label="Play again with a fresh board">
+          ⟳ Play Again
+        </button>
+      </div>
     </div>
 
   </section>
@@ -85,28 +129,45 @@
   <aside class="panel panel-info">
 
     <section class="info-section">
-      <h2 class="panel-title">Move History</h2>
-      <ol id="move-history" class="move-history" reversed></ol>
+      <div class="section-header">
+        <h2 class="panel-title">Move History</h2>
+        <span id="history-count" class="badge">0 moves</span>
+      </div>
+      <ol id="move-history" class="move-history" reversed aria-label="Move history list">
+        <li class="history-empty">No moves played yet. Click any column to begin!</li>
+      </ol>
     </section>
 
     <section class="info-section">
-      <h2 class="panel-title">AI Decision Info</h2>
+      <h2 class="panel-title">DAA Concept Monitor</h2>
       <div id="ai-info" class="ai-info">
-        <p class="muted">AI decision details will appear here in Prompt 3.</p>
+        <div class="daa-pill">
+          <span class="daa-key">Engine Mode:</span>
+          <span class="daa-val">Authoritative (Server)</span>
+        </div>
+        <div class="daa-pill">
+          <span class="daa-key">Win Scan:</span>
+          <span class="daa-val">O(R + C) = O(13)</span>
+        </div>
+        <div class="daa-pill">
+          <span class="daa-key">Move Drop:</span>
+          <span class="daa-val">O(R) = O(6)</span>
+        </div>
+        <p class="muted mt-sm">AI heuristic inspection and decision trees will activate in Prompt 3.</p>
       </div>
     </section>
 
     <section class="info-section">
-      <h2 class="panel-title">Score</h2>
+      <h2 class="panel-title">Match Score</h2>
       <div class="score-board">
         <div class="score-item">
           <span class="disc p1 score-disc"></span>
-          <span>Player 1</span>
+          <span>Player 1 (Red)</span>
           <strong id="score-p1">0</strong>
         </div>
         <div class="score-item">
           <span class="disc p2 score-disc"></span>
-          <span>Player 2</span>
+          <span>Player 2 (Yellow)</span>
           <strong id="score-p2">0</strong>
         </div>
         <div class="score-item">
