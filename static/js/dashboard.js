@@ -116,6 +116,58 @@
     }
 
     try {
+      if (typeof Connect4Engine !== 'undefined') {
+        // High-speed client-side execution (0ms latency, eliminates Netlify cold starts)
+        const liveBoard = window.ClientSession ? window.ClientSession.board : null;
+        const tableRes = Connect4Engine.runBenchmarkSuite(positionId, depth, repeats, liveBoard);
+
+        // Generate depth scaling data across depths 1 to Math.max(depth, 3)
+        const maxD = Math.max(depth, 3);
+        const scalingDepths = [];
+        const mmNodes = [], mmTimes = [];
+        const abNoNodes = [], abNoTimes = [], abNoCutoffs = [];
+        const abOrdNodes = [], abOrdTimes = [], abOrdCutoffs = [];
+        const abTTNodes = [], abTTTimes = [], abTTCutoffs = [], abTTMem = [];
+
+        for (let d = 1; d <= maxD; d++) {
+          scalingDepths.push(d);
+          const rep = Connect4Engine.runBenchmarkSuite(positionId, d, repeats, liveBoard);
+          const rMM = rep.results[0];
+          const rAbNo = rep.results[1];
+          const rAbOrd = rep.results[2];
+          const rAbTT = rep.results[3];
+
+          mmNodes.push(rMM.nodes_visited);
+          mmTimes.push(rMM.time_ms);
+
+          abNoNodes.push(rAbNo.nodes_visited);
+          abNoTimes.push(rAbNo.time_ms);
+          abNoCutoffs.push(rAbNo.cutoffs);
+
+          abOrdNodes.push(rAbOrd.nodes_visited);
+          abOrdTimes.push(rAbOrd.time_ms);
+          abOrdCutoffs.push(rAbOrd.cutoffs);
+
+          abTTNodes.push(rAbTT.nodes_visited);
+          abTTTimes.push(rAbTT.time_ms);
+          abTTCutoffs.push(rAbTT.cutoffs);
+          abTTMem.push(rAbTT.memory_kb);
+        }
+
+        const scalingData = {
+          depths: scalingDepths,
+          minimax: { nodes: mmNodes, times: mmTimes },
+          alphabeta_natural: { nodes: abNoNodes, times: abNoTimes, cutoffs: abNoCutoffs },
+          alphabeta_ordered: { nodes: abOrdNodes, times: abOrdTimes, cutoffs: abOrdCutoffs },
+          alphabeta_tt: { nodes: abTTNodes, times: abTTTimes, cutoffs: abTTCutoffs, memory: abTTMem },
+        };
+
+        renderTable(tableRes.results);
+        renderCharts(scalingData);
+        setStatus('ready', `Done (${repeats} runs aggregated)`);
+        return;
+      }
+
       // 1. Fetch benchmark table data
       const tablePromise = fetch('/api/benchmark/run', {
         method: 'POST',

@@ -583,16 +583,29 @@ function applySnapshot(snap) {
 // API Communication
 // ---------------------------------------------------------------------------
 
+// Authoritative high-speed client-side session engine (eliminates Netlify serverless latency)
+const ClientSession = (typeof Connect4Engine !== "undefined") ? new Connect4Engine.SessionController() : null;
+window.ClientSession = ClientSession;
+
 async function fetchJSON(url, options = {}) {
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    ...options,
-  });
-  const data = await res.json();
-  return { ok: res.ok, status: res.status, data };
+  try {
+    const res = await fetch(url, {
+      headers: { "Content-Type": "application/json" },
+      ...options,
+    });
+    const data = await res.json();
+    return { ok: res.ok, status: res.status, data };
+  } catch (err) {
+    return { ok: false, status: 0, data: { error: err.message } };
+  }
 }
 
 async function loadBoard() {
+  if (ClientSession) {
+    State.lastPlacedCell = null;
+    applySnapshot(ClientSession.getSnapshot());
+    return;
+  }
   const result = await fetchJSON("/api/board");
   if (result.ok) {
     State.lastPlacedCell = null;
@@ -622,35 +635,47 @@ async function sendMove(col) {
   disableAllColumns();
   hideAlert();
 
-  const result = await fetchJSON("/api/move", {
-    method: "POST",
-    body: JSON.stringify({ col }),
-  });
-
-  if (!result.ok) {
-    const errorMsg = (result.data && result.data.error) || "Move rejected by server.";
-    showAlert(errorMsg);
-    State.isProcessing = false;
-    if (result.data && result.data.grid) {
-      applySnapshot(result.data);
-    } else if (State.currentSnapshot) {
-      enableValidColumns(State.currentSnapshot.valid_columns || []);
+  let snap;
+  if (ClientSession) {
+    const res = ClientSession.makeMove(col);
+    if (!res.ok) {
+      showAlert(res.error || "Move rejected.");
+      State.isProcessing = false;
+      if (State.currentSnapshot) enableValidColumns(State.currentSnapshot.valid_columns || []);
+      return;
     }
-    return;
+    snap = res.data;
+  } else {
+    const result = await fetchJSON("/api/move", {
+      method: "POST",
+      body: JSON.stringify({ col }),
+    });
+
+    if (!result.ok) {
+      const errorMsg = (result.data && result.data.error) || "Move rejected by server.";
+      showAlert(errorMsg);
+      State.isProcessing = false;
+      if (result.data && result.data.grid) {
+        applySnapshot(result.data);
+      } else if (State.currentSnapshot) {
+        enableValidColumns(State.currentSnapshot.valid_columns || []);
+      }
+      return;
+    }
+    snap = result.data;
   }
 
-  const snap = result.data;
   State.lastPlacedCell = { row: snap.placed_row, col: snap.placed_col };
   applySnapshot(snap);
   updateScores(snap);
 
   // If playing against AI and game continues, trigger AI turn
   if (!snap.game_over && snap.game_mode === "hva" && snap.current_player === snap.ai_player) {
-    renderStatus(snap); // Updates to "Greedy AI is thinking..."
-    // Natural tactical pause (300ms) for smooth visual disc drop
+    renderStatus(snap); // Updates to "Thinking..."
+    // Natural tactical pause (220ms) for smooth visual disc drop
     setTimeout(async () => {
       await triggerAIMove();
-    }, 300);
+    }, 220);
   } else {
     State.isProcessing = false;
     enableValidColumns(snap.valid_columns || []);
@@ -658,20 +683,32 @@ async function sendMove(col) {
 }
 
 async function triggerAIMove() {
-  const result = await fetchJSON("/api/ai-move", { method: "POST" });
-  State.isProcessing = false;
+  let snap;
+  if (ClientSession) {
+    const res = ClientSession.makeAIMove();
+    State.isProcessing = false;
+    if (!res.ok) {
+      showAlert(res.error || "AI move failed.");
+      return;
+    }
+    snap = res.data;
+  } else {
+    const result = await fetchJSON("/api/ai-move", { method: "POST" });
+    State.isProcessing = false;
 
-  if (!result.ok) {
-    const errorMsg = (result.data && result.data.error) || "AI move failed.";
-    showAlert(errorMsg);
-    if (result.data && result.data.grid) applySnapshot(result.data);
-    return;
+    if (!result.ok) {
+      const errorMsg = (result.data && result.data.error) || "AI move failed.";
+      showAlert(errorMsg);
+      if (result.data && result.data.grid) applySnapshot(result.data);
+      return;
+    }
+    snap = result.data;
   }
 
-  const snap = result.data;
   State.lastPlacedCell = { row: snap.placed_row, col: snap.placed_col };
   applySnapshot(snap);
   updateScores(snap);
+  enableValidColumns(snap.valid_columns || []);
 }
 
 async function sendReset() {
@@ -680,18 +717,26 @@ async function sendReset() {
   if (DOM.gameOverModal) DOM.gameOverModal.classList.add("hidden");
 
   const activeMode = DOM.modeRadios.find(r => r.checked)?.value || "hvh";
-  const result = await fetchJSON("/api/reset", {
-    method: "POST",
-    body: JSON.stringify({ mode: activeMode }),
-  });
-
-  if (result.ok) {
-    State.lastPlacedCell = null;
-    clearHoverPreview();
-    applySnapshot(result.data);
+  let snap;
+  if (ClientSession) {
+    snap = ClientSession.reset(activeMode);
   } else {
-    showAlert("Failed to reset game.");
+    const result = await fetchJSON("/api/reset", {
+      method: "POST",
+      body: JSON.stringify({ mode: activeMode }),
+    });
+
+    if (result.ok) {
+      snap = result.data;
+    } else {
+      showAlert("Failed to reset game.");
+      return;
+    }
   }
+
+  State.lastPlacedCell = null;
+  clearHoverPreview();
+  applySnapshot(snap);
 }
 
 async function switchMode(newMode) {
@@ -702,24 +747,38 @@ async function switchMode(newMode) {
   const useOrdering = DOM.aiMoveOrdering ? DOM.aiMoveOrdering.checked : true;
   const useTT = DOM.aiTTCheckbox ? DOM.aiTTCheckbox.checked : true;
 
-  const result = await fetchJSON("/api/mode", {
-    method: "POST",
-    body: JSON.stringify({
+  let snap;
+  if (ClientSession) {
+    snap = ClientSession.configure({
       mode: newMode,
       ai_strategy: strategy,
       depth: depth,
       use_move_ordering: useOrdering,
       use_transposition_table: useTT,
-    }),
-  });
-
-  if (result.ok) {
-    State.lastPlacedCell = null;
-    clearHoverPreview();
-    applySnapshot(result.data);
+    });
   } else {
-    showAlert("Failed to switch game mode.");
+    const result = await fetchJSON("/api/mode", {
+      method: "POST",
+      body: JSON.stringify({
+        mode: newMode,
+        ai_strategy: strategy,
+        depth: depth,
+        use_move_ordering: useOrdering,
+        use_transposition_table: useTT,
+      }),
+    });
+
+    if (result.ok) {
+      snap = result.data;
+    } else {
+      showAlert("Failed to switch game mode.");
+      return;
+    }
   }
+
+  State.lastPlacedCell = null;
+  clearHoverPreview();
+  applySnapshot(snap);
 }
 
 async function updateAISettings() {
@@ -731,24 +790,38 @@ async function updateAISettings() {
   const useOrdering = DOM.aiMoveOrdering ? DOM.aiMoveOrdering.checked : true;
   const useTT = DOM.aiTTCheckbox ? DOM.aiTTCheckbox.checked : true;
 
-  const result = await fetchJSON("/api/mode", {
-    method: "POST",
-    body: JSON.stringify({
+  let snap;
+  if (ClientSession) {
+    snap = ClientSession.configure({
       mode: activeMode,
       ai_strategy: strategy,
       depth: depth,
       use_move_ordering: useOrdering,
       use_transposition_table: useTT,
-    }),
-  });
-
-  if (result.ok) {
-    State.lastPlacedCell = null;
-    clearHoverPreview();
-    applySnapshot(result.data);
+    });
   } else {
-    showAlert("Failed to update AI settings.");
+    const result = await fetchJSON("/api/mode", {
+      method: "POST",
+      body: JSON.stringify({
+        mode: activeMode,
+        ai_strategy: strategy,
+        depth: depth,
+        use_move_ordering: useOrdering,
+        use_transposition_table: useTT,
+      }),
+    });
+
+    if (result.ok) {
+      snap = result.data;
+    } else {
+      showAlert("Failed to update AI settings.");
+      return;
+    }
   }
+
+  State.lastPlacedCell = null;
+  clearHoverPreview();
+  applySnapshot(snap);
 }
 
 // ---------------------------------------------------------------------------
@@ -957,28 +1030,63 @@ async function openComparisonModal() {
     DOM.compInsights.innerHTML = "";
   }
 
-  DOM.comparisonModal.classList.remove("hidden");
+  let report;
+  if (typeof Connect4Engine !== "undefined" && ClientSession) {
+    const bClone = ClientSession.board.copy();
+    const mm = Connect4Engine.getMinimaxDecision(bClone.copy(), compareDepth, 2);
+    const abNo = Connect4Engine.getAlphaBetaDecision(bClone.copy(), compareDepth, 2, false, false);
+    const abOrd = Connect4Engine.getAlphaBetaDecision(bClone.copy(), compareDepth, 2, true, false);
+    const abTT = Connect4Engine.getAlphaBetaDecision(bClone.copy(), compareDepth, 2, true, true);
 
-  const result = await fetchJSON("/api/compare", {
-    method: "POST",
-    body: JSON.stringify({ depth: compareDepth, repeats: 1 }),
-  });
+    const baseNodes = mm.nodes_visited || 1;
+    const baseTime = mm.compute_time_ms || 0.1;
 
-  if (!result.ok) {
-    const errorMsg = (result.data && result.data.error) || "Benchmark comparison failed.";
-    if (DOM.compTableBody) {
-      DOM.compTableBody.innerHTML = `
-        <tr>
-          <td colspan="7" style="text-align:center; padding: 20px; color: var(--color-p1-light);">
-            ⚠️ ${errorMsg}
-          </td>
-        </tr>
-      `;
+    function fmt(name, res) {
+      const red = Math.max(0, +(((baseNodes - res.nodes_visited) / baseNodes) * 100).toFixed(1));
+      const sp = +(baseTime / Math.max(0.1, res.compute_time_ms)).toFixed(2);
+      return {
+        name: name,
+        chosen_col: res.column,
+        score: res.score,
+        nodes_visited: res.nodes_visited,
+        cutoffs: res.cutoffs || 0,
+        time_ms: res.compute_time_ms,
+        node_reduction_pct: red,
+        speedup_ratio: sp,
+      };
     }
-    return;
+
+    report = {
+      algorithms: {
+        minimax: fmt("Minimax", mm),
+        alphabeta_no_ordering: fmt("Alpha-Beta (Natural)", abNo),
+        alphabeta_with_ordering: fmt("Alpha-Beta (Ordered)", abOrd),
+        alphabeta_with_tt: fmt("Alpha-Beta + TT", abTT),
+      }
+    };
+  } else {
+    const result = await fetchJSON("/api/compare", {
+      method: "POST",
+      body: JSON.stringify({ depth: compareDepth, repeats: 1 }),
+    });
+
+    if (!result.ok) {
+      const errorMsg = (result.data && result.data.error) || "Benchmark comparison failed.";
+      if (DOM.compTableBody) {
+        DOM.compTableBody.innerHTML = `
+          <tr>
+            <td colspan="7" style="text-align:center; padding: 20px; color: var(--color-p1-light);">
+              ⚠️ ${errorMsg}
+            </td>
+          </tr>
+        `;
+      }
+      return;
+    }
+    report = result.data;
   }
 
-  renderComparisonTable(result.data);
+  renderComparisonTable(report);
 }
 
 function renderComparisonTable(report) {
