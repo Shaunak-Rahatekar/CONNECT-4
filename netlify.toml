@@ -1,0 +1,24 @@
+# netlify.toml — Netlify Deployment Configuration for Connect-4 DAA Application
+
+[build]
+  command = "mkdir -p public/static && cp -r static/* public/static/ && pip install -r requirements.txt"
+  publish = "public"
+  functions = "netlify/functions"
+
+[build.environment]
+  PYTHON_VERSION = "3.10"
+
+[functions]
+  directory = "netlify/functions"
+
+# 1. Direct static asset caching for CSS and JavaScript
+[[headers]]
+  for = "/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# 2. Redirect all dynamic routes (homepage, API endpoints, benchmarks) to the Python serverless function
+[[redirects]]
+  from = "/*"
+  to = "/.netlify/functions/app"
+  status = 200

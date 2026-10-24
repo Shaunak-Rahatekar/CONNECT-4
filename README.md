@@ -108,10 +108,16 @@ CONNECT-4/
 │   └── js/
 │       ├── game.js         Live game controller & AI panel updates
 │       └── dashboard.js    Performance dashboard & Chart.js interactive manager
+├── netlify/
+│   └── functions/
+│       └── app.py          Serverless WSGI function adapter for Netlify
+├── netlify.toml            Netlify deployment, CDN static caching & redirect rules
+├── runtime.txt             Python runtime configuration (3.10)
 └── docs/
+    ├── NETLIFY_DEPLOYMENT.md     Step-by-step Netlify cloud deployment guide
     ├── PROJECT_DOCUMENTATION.md  Exhaustive DAA analysis and development log
     ├── TECHNICAL_REPORT.md       In-depth technical report, math models & future roadmap
-    ├── TEST_REPORT.md            Comprehensive testing report (173 tests, audits & benchmarks)
+    ├── TEST_REPORT.md            Comprehensive testing report (179 tests, audits & benchmarks)
     └── USER_GUIDE.md             Complete user manual & element-by-element UI guide
 ```
 
@@ -119,13 +125,14 @@ CONNECT-4/
 
 ## Documentation
 
-Full technical documentation, user guides, DAA concept mapping, complexity analysis,
+Full technical documentation, deployment guides, user manuals, DAA concept mapping, complexity analysis,
 test reports, and development logs:
 
+🌐 [`docs/NETLIFY_DEPLOYMENT.md`](docs/NETLIFY_DEPLOYMENT.md) — Step-by-Step Netlify Cloud Deployment Guide  
 📘 [`docs/TECHNICAL_REPORT.md`](docs/TECHNICAL_REPORT.md) — In-Depth Technical Report, Math Models & Future Roadmap  
 📖 [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md) — Complete User Manual, UI Element Guide & Workflows  
 📄 [`docs/PROJECT_DOCUMENTATION.md`](docs/PROJECT_DOCUMENTATION.md) — Exhaustive DAA Analysis and Architecture  
-🧪 [`docs/TEST_REPORT.md`](docs/TEST_REPORT.md) — Comprehensive Test & Evaluation Report (173 Tests, Invariants & Benchmarks)
+🧪 [`docs/TEST_REPORT.md`](docs/TEST_REPORT.md) — Comprehensive Test & Evaluation Report (179 Tests, Invariants & Benchmarks)
 
 ---
 
