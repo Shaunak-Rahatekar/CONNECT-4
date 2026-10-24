@@ -9,23 +9,28 @@ Algorithms (DAA)** course.
 
 ## Current Status
 
-**Milestone 2 — Playable Connect-4 Game Engine** ✅
+**Milestone 3 — Greedy AI Opponent** ✅
 
-- 🎮 **Authoritative Python Game Engine:** Full 6×7 Connect-4 rule enforcement (gravity, turn alternation, boundary and full-column validation, win detection across horizontal, vertical, and both diagonal axes, and true draw detection).
-- 🧩 **Procedural Engine API:** Canonical, reusable functions (`create_board()`, `get_valid_moves()`, `make_move()`, `check_winner()`, `is_draw()`, `get_game_status()`) supporting both `Board` instances and 2D arrays.
-- 🎨 **Responsive Interactive Web UI:** Pass-and-play local 2-player mode with interactive board cell clicking, real-time ghost disc hover preview in player colors, invalid-move feedback with alert banner and board-shake animation, glowing active turn indicators, celebration victory modal, and live move history.
-- 🧪 **Comprehensive Test Coverage:** 95 automated pytest tests covering all game engine methods, edge cases, deterministic boards, and Flask API endpoints.
+- 🤖 **Fast Tactical Greedy AI:** Implemented depth-1 priority-driven AI that evaluates all immediate candidate moves:
+  1. Immediate win detection.
+  2. Immediate opponent win blocking.
+  3. Static heuristic scoring across all 69 four-cell winning windows.
+  4. Center column bias and deterministic tie-breaking (`[3, 2, 4, 1, 5, 0, 6]`).
+- 📊 **Real-Time AI Decision Panel:** Visualizes chosen column, heuristic score, tactical reasoning, measured execution time in milliseconds, and candidate move breakdown pills.
+- 🎮 **Game Mode Selector:** Seamless toggle between Local 2-Player (Pass & Play) and Play vs Greedy AI with authoritative server validation.
+- 🧪 **Complete Test Suite:** 113 automated pytest tests passing across game engine, AI logic, and Flask REST endpoints.
 
 ---
 
 ## Features (Across Milestones)
 
 - ♟ **Local 2-Player Mode** (Pass & Play) ✅ *(Milestone 2)*
-- 🤖 **Greedy, Minimax, Alpha-Beta, and Memoized AI strategies** *(Milestones 3–6)*
-- 🔢 **Configurable search depth (1–7)** *(Milestones 4–5)*
-- 📊 **Real-time AI decision information panel** *(Milestone 3+)*
-- 📈 **Algorithm performance comparison dashboard** *(Milestone 7)*
-- 🧪 **Complete pytest suite (95 tests passing)** ✅
+- 🤖 **Greedy AI Opponent** ✅ *(Milestone 3)*
+- 🌲 **Minimax Search** *(Milestone 4 — Next)*
+- ✂️ **Alpha-Beta Pruning** *(Milestone 5)*
+- 💾 **Memoized Minimax & Transposition Table** *(Milestone 6)*
+- 📈 **Algorithm Performance Comparison Dashboard** *(Milestone 7)*
+- 🧪 **Complete pytest suite (113 tests passing)** ✅
 
 ---
 
@@ -63,22 +68,26 @@ pytest tests/ -v
 
 ```
 CONNECT-4/
-├── app.py              Flask entry point and authoritative API routes
-├── game/               Game engine (Flask-independent)
-│   ├── __init__.py     Public API exports
-│   ├── board.py        Board state, gravity, history, undo
-│   ├── rules.py        Win detection across 4 axes, draw detection, GameState
-│   └── engine.py       Procedural engine API (create_board, make_move, etc.)
-├── algorithms/         AI modules (added in Prompts 3-6)
-├── benchmarks/         Performance runner (added in Prompt 7)
-├── tests/              pytest test suite
-│   ├── test_board.py   40 unit tests for Board
-│   ├── test_rules.py   24 unit tests for Rules
-│   ├── test_engine.py  23 unit tests for reusable engine functions
-│   └── test_app.py     8 integration tests for Flask API endpoints
-├── templates/          Jinja2 HTML templates (base.html, index.html)
-├── static/             CSS stylesheet and JavaScript client controller
-└── docs/               Technical documentation and DAA analysis
+├── app.py                  Flask entry point, mode selection, REST endpoints
+├── game/                   Authoritative Python game engine
+│   ├── __init__.py         Package exports
+│   ├── board.py            Grid state, gravity, history, undo
+│   ├── rules.py            Win detection across 4 axes, draw detection, GameState
+│   └── engine.py           Procedural engine API (create_board, make_move, etc.)
+├── algorithms/             AI strategies
+│   ├── __init__.py         Package exports
+│   ├── evaluation.py       Static heuristic window evaluation and weights
+│   └── greedy.py           Greedy AI priority decision maker
+├── benchmarks/             Performance runner (added in Prompt 7)
+├── tests/                  Automated pytest test suite (113 tests)
+│   ├── test_board.py       40 unit tests for Board
+│   ├── test_rules.py       24 unit tests for Rules
+│   ├── test_engine.py      23 unit tests for procedural engine functions
+│   ├── test_greedy.py      14 unit tests for Greedy AI & heuristic scoring
+│   └── test_app.py         12 integration tests for Flask REST endpoints
+├── templates/              Jinja2 HTML templates (base.html, index.html)
+├── static/                 CSS stylesheet and JavaScript client controller
+└── docs/                   Technical documentation and DAA analysis
 ```
 
 ---

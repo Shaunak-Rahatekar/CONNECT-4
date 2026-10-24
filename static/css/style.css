@@ -650,24 +650,112 @@ select:disabled, input[type="range"]:disabled { opacity: 0.4; cursor: not-allowe
   color: var(--color-text);
 }
 
+.badge-active {
+  background: rgba(52, 211, 153, 0.15);
+  color: #34d399;
+  border-color: rgba(52, 211, 153, 0.35);
+}
+.badge-ai {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--color-p2-light);
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
 .ai-info {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.6rem;
   font-size: 0.82rem;
 }
-.daa-pill {
+.ai-empty-state {
+  color: var(--color-muted);
+  font-style: italic;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+.ai-data-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.ai-data-container.hidden { display: none; }
+
+.ai-metric-row {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   background: var(--color-surface-2);
   padding: 0.35rem 0.65rem;
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-border);
 }
-.daa-key { color: var(--color-muted); }
-.daa-val { font-family: monospace; font-weight: 600; color: var(--color-text); }
-.mt-sm { margin-top: 0.4rem; }
-.ai-info .muted { font-style: italic; color: var(--color-muted); }
+.ai-label { color: var(--color-muted); font-size: 0.8rem; }
+.ai-val { font-family: monospace; font-weight: 600; color: var(--color-text); }
+.ai-val-highlight {
+  font-family: monospace;
+  font-weight: 700;
+  color: var(--color-p2-light);
+  background: rgba(245, 158, 11, 0.2);
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+}
+
+.ai-reason-box {
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.65rem;
+}
+.ai-reason-title {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.25rem;
+}
+.ai-reason-text {
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: var(--color-text);
+}
+
+.ai-candidates-box {
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.65rem;
+}
+.ai-candidates-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+}
+.candidate-pill {
+  font-size: 0.75rem;
+  font-family: monospace;
+  padding: 0.2rem 0.45rem;
+  border-radius: 4px;
+  background: var(--color-surface-3);
+  border: 1px solid var(--color-border);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.candidate-pill.chosen {
+  background: rgba(245, 158, 11, 0.25);
+  border-color: var(--color-p2);
+  color: var(--color-p2-light);
+  font-weight: 700;
+}
+.candidate-pill.positive { color: #34d399; }
+.candidate-pill.negative { color: #f87171; }
+
+.thinking-pulse {
+  animation: pulse-ring-p2 1s infinite alternate;
+}
 
 /* Score board */
 .score-board {

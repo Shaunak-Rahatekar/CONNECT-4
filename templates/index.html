@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Play Connect-4 — Local Two-Player{% endblock %}
+{% block title %}Play Connect-4 — AI & Algorithm Analysis{% endblock %}
 
 {% block content %}
 <div class="game-layout">
@@ -12,12 +12,12 @@
     <section class="control-group">
       <h3>Game Mode</h3>
       <label class="radio-label">
-        <input type="radio" name="mode" value="hvh" checked />
+        <input type="radio" name="mode" value="hvh" checked id="mode-hvh" />
         <span>Local 2-Player (Pass & Play)</span>
       </label>
       <label class="radio-label">
-        <input type="radio" name="mode" value="hva" disabled />
-        <span>Human vs AI</span> <span class="badge coming-soon">Prompt 3</span>
+        <input type="radio" name="mode" value="hva" id="mode-hva" />
+        <span>Play vs AI</span> <span class="badge badge-active">Greedy Active</span>
       </label>
     </section>
 
@@ -27,15 +27,15 @@
         <div class="player-card active-card" id="card-p1">
           <span class="disc p1 score-disc"></span>
           <div class="player-meta">
-            <strong>Player 1</strong>
-            <small>Red Discs</small>
+            <strong id="label-p1">Player 1</strong>
+            <small id="sub-p1">Red Discs (Human)</small>
           </div>
         </div>
         <div class="player-card" id="card-p2">
           <span class="disc p2 score-disc"></span>
           <div class="player-meta">
-            <strong>Player 2</strong>
-            <small>Yellow Discs</small>
+            <strong id="label-p2">Player 2</strong>
+            <small id="sub-p2">Yellow Discs</small>
           </div>
         </div>
       </div>
@@ -43,18 +43,18 @@
 
     <section class="control-group">
       <h3>AI Strategy</h3>
-      <select id="ai-strategy" disabled aria-label="AI Strategy (disabled in 2-player mode)">
-        <option value="greedy">Greedy (Prompt 3)</option>
-        <option value="minimax">Minimax (Prompt 4)</option>
-        <option value="alphabeta">Alpha-Beta (Prompt 5)</option>
-        <option value="memo">Memoized (Prompt 6)</option>
+      <select id="ai-strategy" aria-label="AI Strategy Selector">
+        <option value="greedy" selected>Greedy Heuristic (Prompt 3)</option>
+        <option value="minimax" disabled>Minimax (Prompt 4 — Coming Soon)</option>
+        <option value="alphabeta" disabled>Alpha-Beta (Prompt 5 — Coming Soon)</option>
+        <option value="memo" disabled>Memoized Minimax (Prompt 6 — Coming Soon)</option>
       </select>
     </section>
 
     <section class="control-group">
       <h3>AI Depth</h3>
-      <input type="range" id="ai-depth" min="1" max="7" value="4" disabled aria-label="AI Depth (disabled in 2-player mode)" />
-      <span id="depth-label">4</span>
+      <input type="range" id="ai-depth" min="1" max="7" value="1" disabled aria-label="AI Depth (Greedy is depth 1)" />
+      <span id="depth-label">1 (Depth-1 Greedy)</span>
     </section>
 
     <button id="btn-reset" class="btn btn-primary btn-full" aria-label="Start a new game">
@@ -138,22 +138,38 @@
       </ol>
     </section>
 
+    <!-- AI Decision Panel (Live for Prompt 3) -->
     <section class="info-section">
-      <h2 class="panel-title">DAA Concept Monitor</h2>
-      <div id="ai-info" class="ai-info">
-        <div class="daa-pill">
-          <span class="daa-key">Engine Mode:</span>
-          <span class="daa-val">Authoritative (Server)</span>
+      <div class="section-header">
+        <h2 class="panel-title">AI Decision Panel</h2>
+        <span id="ai-active-badge" class="badge badge-ai">Greedy AI</span>
+      </div>
+      <div id="ai-info" class="ai-info" aria-live="polite">
+        <div id="ai-empty-state" class="ai-empty-state">
+          <p class="muted">Play against Greedy AI to inspect real-time heuristic evaluations, tactical priorities, and candidate scores.</p>
         </div>
-        <div class="daa-pill">
-          <span class="daa-key">Win Scan:</span>
-          <span class="daa-val">O(R + C) = O(13)</span>
+        <div id="ai-data-container" class="ai-data-container hidden">
+          <div class="ai-metric-row">
+            <span class="ai-label">Chosen Move:</span>
+            <strong id="ai-chosen-col" class="ai-val-highlight">Col 4</strong>
+          </div>
+          <div class="ai-metric-row">
+            <span class="ai-label">Evaluation Score:</span>
+            <span id="ai-eval-score" class="ai-val">0.0</span>
+          </div>
+          <div class="ai-metric-row">
+            <span class="ai-label">Compute Time:</span>
+            <span id="ai-compute-time" class="ai-val">0.0 ms</span>
+          </div>
+          <div class="ai-reason-box">
+            <span class="ai-reason-title">Tactical Priority:</span>
+            <p id="ai-decision-reason" class="ai-reason-text">—</p>
+          </div>
+          <div class="ai-candidates-box">
+            <span class="ai-reason-title">Candidate Move Scores:</span>
+            <div id="ai-candidates-grid" class="ai-candidates-grid"></div>
+          </div>
         </div>
-        <div class="daa-pill">
-          <span class="daa-key">Move Drop:</span>
-          <span class="daa-val">O(R) = O(6)</span>
-        </div>
-        <p class="muted mt-sm">AI heuristic inspection and decision trees will activate in Prompt 3.</p>
       </div>
     </section>
 
@@ -162,12 +178,12 @@
       <div class="score-board">
         <div class="score-item">
           <span class="disc p1 score-disc"></span>
-          <span>Player 1 (Red)</span>
+          <span id="score-name-p1">Player 1 (Red)</span>
           <strong id="score-p1">0</strong>
         </div>
         <div class="score-item">
           <span class="disc p2 score-disc"></span>
-          <span>Player 2 (Yellow)</span>
+          <span id="score-name-p2">Player 2 (Yellow)</span>
           <strong id="score-p2">0</strong>
         </div>
         <div class="score-item">

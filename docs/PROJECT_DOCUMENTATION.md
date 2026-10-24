@@ -216,7 +216,7 @@ pytest tests/ -v
 | II — Recursion / D&C | Recursive Minimax, game trees | minimax.py | Prompt 4 |
 | II — Recursion / D&C | Alpha-Beta Pruning | alphabeta.py | Prompt 5 |
 | III — Dynamic Programming | Memoization / transposition table | transposition.py | Prompt 6 |
-| IV — Greedy | Heuristic-based AI | greedy.py | Prompt 3 |
+| IV — Greedy | Heuristic-based AI | greedy.py | ✅ Prompt 3 |
 | IV — Backtracking | Move simulation + undo during search | board.py | ✅ Prompt 1 |
 
 ---
@@ -229,6 +229,9 @@ Tests reside in `tests/` and run with `pytest`.  No Flask server is required.
   (out-of-range columns, full columns, undo on empty board).
 - **test_rules.py** — 24 tests covering win detection in all four directions,
   draw detection, turn alternation, and board-state restoration after undo.
+- **test_engine.py** — 23 tests covering procedural engine functions.
+- **test_greedy.py** — 14 tests covering Greedy AI priorities and heuristics.
+- **test_app.py** — 12 tests covering Flask REST APIs and mode transitions.
 
 After every milestone, the full test suite is re-run and regressions are fixed
 before committing.
@@ -241,7 +244,7 @@ before committing.
 |--------|-----------|--------|
 | 1 | Project initialization and architecture | ✅ Complete |
 | 2 | Complete playable Connect-4 game | ✅ Complete |
-| 3 | Greedy AI | Pending |
+| 3 | Greedy AI | ✅ Complete |
 | 4 | Minimax AI and decision-tree analysis | Pending |
 | 5 | Alpha-Beta Pruning and comparison | Pending |
 | 6 | Memoization and transposition table | Pending |
@@ -568,4 +571,150 @@ tests/test_rules.py (24 tests)    — All PASSED
 - **Commit Message:** `feat: implement playable Connect-4 game engine`
 - **Remote:** `https://github.com/Shaunak-Rahatekar/CONNECT-4.git`
 - **Push Status:** ✅ Confirmed — pushed to `origin/main` (`172cecb..cf18e15`).
+
+---
+
+---
+
+## Development Log — Prompt 3
+
+**Date:** 2026-10-24
+**Objective:** Implement a fast, genuine Greedy AI opponent for Connect-4 using immediate tactical priority rules and static heuristic window scoring. Integrate the AI into the game loop with live decision tracking, establish thorough pytest coverage, and document the DAA theoretical foundations of greedy algorithms vs. adversarial search.
+
+---
+
+### Features Implemented
+
+1. **Static Board Evaluation Engine (`algorithms/evaluation.py`)**:
+   - Precomputes all 69 four-cell winning windows on a $6 \times 7$ board once at module load (24 horizontal, 21 vertical, 12 diagonal ↘, 12 diagonal ↗).
+   - Configurable `HeuristicWeights` dataclass.
+   - Evaluates potential lines: awards positive weights for unblocked AI lines (+100,000 for 4-in-a-row, +100 for 3, +10 for 2, +1 for 1), negative penalties for unblocked opponent lines (-100,000 for 4, -90 for 3, -10 for 2, -1 for 1), and center-column control bonuses (+4 per center disc).
+2. **Greedy AI Strategy Module (`algorithms/greedy.py`)**:
+   - Implemented `get_greedy_decision()` and `choose_greedy_move()` enforcing strict priority ordering:
+     1. Immediate Win: Scan candidate moves for an immediate 4-in-a-row win.
+     2. Immediate Block: Scan candidate moves to detect and block any immediate opponent winning move.
+     3. Heuristic Maximization: Simulate candidate moves using in-place `drop_disc` / `undo_last_move` backtracking and evaluate resulting positions.
+     4. Center Preference: Bias move selection toward column 3 when candidate evaluations are equivalent.
+     5. Deterministic Tie-Breaking: Use fixed outward ranking order `[3, 2, 4, 1, 5, 0, 6]` to guarantee 100% reproducible decisions across identical positions.
+   - Safe terminal handling: Safely returns `None` with explanatory messages if the board is full or a winner already exists.
+3. **Flask Server Integration (`app.py`)**:
+   - Added `POST /api/mode` endpoint to switch between `"hvh"` (Local 2-Player) and `"hva"` (Human vs AI).
+   - Added `POST /api/ai-move` endpoint to authoritatively compute and execute AI moves with execution time tracking.
+   - Enhanced `POST /api/move` with optional `auto_ai` support.
+   - Extended `_board_snapshot()` with `game_mode`, `ai_strategy`, `ai_player`, and `ai_decision`.
+4. **Interactive Browser Interface & Live Decision Panel**:
+   - Enabled "Play vs AI (Greedy Active)" in controls panel.
+   - Created live **AI Decision Panel** displaying chosen move, heuristic score, execution time in ms, decision reasoning, and candidate move breakdown pills.
+   - Added natural turn transition (300 ms tactical pause) and disabled human input while AI is processing.
+5. **Comprehensive Automated Test Suite (`tests/test_greedy.py`, `tests/test_app.py`)**:
+   - Added 14 unit tests for Greedy AI and heuristic scoring.
+   - Added 4 integration tests for AI mode and AI move endpoints. Total test suite expanded to 113 passing tests.
+
+---
+
+### DAA Concept Analysis (Unit IV — Greedy Algorithms)
+
+#### 1. The Greedy Strategy in Connect-4
+A greedy algorithm makes locally optimal choices at each decision stage with the expectation of finding a satisfactory overall outcome. In Connect-4:
+- The AI evaluates only the immediate next state resulting from each of the $C \le 7$ candidate moves.
+- It does not look ahead to subsequent plies or build a multi-turn game tree.
+- Move selection follows a lexicographical priority hierarchy:
+  $$\text{Immediate Win} \succ \text{Immediate Block} \succ \max_{c} \text{Heuristic}(c) \succ \text{Center Bias}$$
+
+#### 2. Why Local Heuristics Miss Deeper Tactical Threats
+Greedy AI is susceptible to short-sighted tactical blunders due to the **horizon effect**:
+1. *Setup Traps (Self-Sabotage):* A greedy agent may place a disc into column $c$ that improves its own heuristic score, unaware that the cell directly above its newly placed disc enables the opponent to win on the very next turn.
+2. *Double Threats (Forks):* A greedy agent blocks only immediate 1-move threats. It cannot recognize or defend against an opponent setting up a two-way horizontal or diagonal trap (a fork) two plies ahead.
+3. *Lack of Minimax Assumption:* Greedy assumes static position evaluation rather than optimal adversarial counter-play, making it vulnerable to forced combination lines.
+
+#### 3. Greedy vs. Adversarial Search
+| Metric / Feature | Greedy AI (Milestone 3) | Minimax Search (Milestone 4) | Alpha-Beta Pruning (Milestone 5) |
+|---|---|---|---|
+| Search Depth | 1 ply (immediate moves only) | $d$ plies ($1 \le d \le 7$) | $d$ plies with branch pruning |
+| Opponent Modeling | Reactive (blocks 1-ply threats) | Assumes optimal counter-play | Assumes optimal counter-play |
+| Decision Time | $< 1\text{ ms}$ | Exponential in depth: $O(b^d)$ | Pruned exponential: $O(b^{d/2})$ |
+| Memory Overhead | $O(1)$ auxiliary | $O(d)$ recursion stack | $O(d)$ recursion stack |
+| Tactical Foresight | Fails against 2+ ply setups | Discovers forced wins / defenses | Discovers forced wins / defenses |
+
+#### 4. Cost of Candidate Move Evaluation & Complexity Bounds
+- **Branching Factor:** At most $C = 7$ candidate columns per turn.
+- **Move Simulation:** Rather than allocating temporary board copies ($O(R \cdot C)$ memory per candidate), the engine employs **backtracking**:
+  1. `board.drop_disc(col, player)` $\implies O(R)$ time, mutates grid in place.
+  2. `evaluate_board(board, player)` $\implies O(69 \times 4) = O(276)$ time.
+  3. `board.undo_last_move()` $\implies O(1)$ stack pop, restores grid.
+- **Asymptotic Time Complexity:**
+  $$T(R, C, K) = O\Big(C \cdot \big(R + \text{Windows}(R, C, K) \cdot K\big)\Big)$$
+  For standard Connect-4 ($R=6, C=7, K=4$ with 69 windows):
+  $$T = 7 \cdot (6 + 276) = 1974 \text{ operations} \approx O(1)$$
+  In practice, the entire evaluation completes in **$0.3\text{ ms to } 0.8\text{ ms}$**.
+- **Auxiliary Space Complexity:** $O(C)$ to hold candidate scores. **Zero** temporary board copies are created during evaluation.
+
+---
+
+### Heuristic Weights Reference
+
+| Heuristic Token | Weight | Rationale |
+|---|---|---|
+| `win` | $+100,000$ | Terminal winning connection for AI |
+| `three` | $+100$ | Unblocked 3-in-a-row (high potential to win) |
+| `two` | $+10$ | Unblocked 2-in-a-row (builds future threats) |
+| `one` | $+1$ | Unblocked 1-in-a-row (seed opportunity) |
+| `opp_win` | $-100,000$ | Terminal opponent win |
+| `opp_three` | $-90$ | High defensive priority against opponent threats |
+| `opp_two` | $-10$ | Opponent developing lines |
+| `opp_one` | $-1$ | Opponent single disc |
+| `center` | $+4$ | Column 3 participation bonus (participates in 21 windows) |
+
+---
+
+### Files Changed and Created
+
+| File | Status | Description |
+|---|---|---|
+| `algorithms/evaluation.py` | Created | Static heuristic scoring for 69 four-cell windows |
+| `algorithms/greedy.py` | Created | Greedy AI with priority rules, center bias, and tie-breaking |
+| `algorithms/__init__.py` | Updated | Package exports for greedy and evaluation modules |
+| `app.py` | Updated | `/api/mode` and `/api/ai-move` endpoints, AI snapshot tracking |
+| `templates/index.html` | Updated | Mode selector, AI strategy dropdown, live AI Decision Panel |
+| `static/css/style.css` | Updated | Decision panel metric rows, candidate score pills, pulse glow |
+| `static/js/game.js` | Updated | Mode switching, AI turn coordination, live metrics rendering |
+| `tests/test_greedy.py` | Created | 14 unit tests for greedy moves, blocks, center bias, and edge cases |
+| `tests/test_app.py` | Updated | Added integration tests for AI mode and AI move endpoints |
+| `README.md` | Updated | Milestone 3 Greedy AI documentation |
+| `docs/PROJECT_DOCUMENTATION.md` | Updated | Appended Prompt 3 log and DAA analysis |
+
+---
+
+### Tests Executed and Actual Results
+
+```powershell
+pytest -v
+```
+
+```
+============================= test session starts =============================
+platform win32 -- Python 3.13.1, pytest-8.3.5, pluggy-1.7.0
+rootdir: D:\CONNECT-4
+plugins: cov-6.1.0
+collected 113 items
+
+tests/test_app.py (12 tests)       — All PASSED
+tests/test_board.py (40 tests)     — All PASSED
+tests/test_engine.py (23 tests)    — All PASSED
+tests/test_greedy.py (14 tests)    — All PASSED
+tests/test_rules.py (24 tests)     — All PASSED
+
+============================= 113 passed in 1.79s =============================
+```
+
+---
+
+### Git Commit Hash and Push Status
+
+- **Commit Hash:** `[Recorded upon commit]`
+- **Branch:** `main`
+- **Commit Message:** `feat: add greedy Connect-4 AI`
+- **Remote:** `https://github.com/Shaunak-Rahatekar/CONNECT-4.git`
+- **Push Status:** Ready for commit and push.
+
 

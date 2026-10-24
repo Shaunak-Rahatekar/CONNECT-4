@@ -122,3 +122,58 @@ def test_api_reset(client):
     assert data["current_player"] == PLAYER1
     assert data["game_over"] is False
     assert len(data["move_history"]) == 0
+
+
+def test_api_mode_switch(client):
+    res = client.post("/api/mode", json={"mode": "hva", "ai_strategy": "greedy"})
+    assert res.status_code == 200
+    data = res.get_json()
+    assert data["game_mode"] == "hva"
+    assert data["ai_strategy"] == "greedy"
+    assert data["move_count"] == 0
+
+    # Invalid mode
+    res_invalid = client.post("/api/mode", json={"mode": "invalid_mode"})
+    assert res_invalid.status_code == 400
+
+
+def test_api_ai_move_success(client):
+    # Set mode to hva
+    client.post("/api/mode", json={"mode": "hva", "ai_strategy": "greedy"})
+
+    # Human (P1) plays center column 3
+    res_p1 = client.post("/api/move", json={"col": 3})
+    assert res_p1.status_code == 200
+    assert res_p1.get_json()["current_player"] == PLAYER2
+
+    # Request AI move
+    res_ai = client.post("/api/ai-move")
+    assert res_ai.status_code == 200
+    data_ai = res_ai.get_json()
+    assert data_ai["success"] is True
+    assert data_ai["player"] == PLAYER2
+    assert data_ai["current_player"] == PLAYER1
+    assert "ai_decision" in data_ai
+    assert data_ai["ai_decision"]["strategy"] == "greedy"
+    assert data_ai["ai_decision"]["column"] in range(COLS)
+
+
+def test_api_ai_move_wrong_turn(client):
+    # Fresh game: P1's turn
+    res = client.post("/api/ai-move")
+    assert res.status_code == 400
+    assert "not the AI's turn" in res.get_json()["error"]
+
+
+def test_api_move_auto_ai(client):
+    # Set mode to hva
+    client.post("/api/mode", json={"mode": "hva", "ai_strategy": "greedy"})
+
+    # Post human move with auto_ai=True
+    res = client.post("/api/move", json={"col": 3, "auto_ai": True})
+    assert res.status_code == 200
+    data = res.get_json()
+    assert "ai_move" in data
+    assert data["move_count"] == 2
+    assert data["current_player"] == PLAYER1
+
