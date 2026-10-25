@@ -631,21 +631,27 @@
     const baselineNodes = resMinimax.nodes_visited || 1;
     const baselineTime = resMinimax.compute_time_ms || 0.1;
 
-    function buildRow(name, r) {
+    function buildRow(name, key, r) {
       const workRed = Math.max(0, +(((baselineNodes - r.nodes_visited) / baselineNodes) * 100).toFixed(1));
-      const speedup = +(baselineTime / Math.max(0.1, r.compute_time_ms)).toFixed(2);
+      const speedup = +(baselineTime / Math.max(0.01, r.compute_time_ms)).toFixed(2);
       return {
+        algorithm_key: key,
         name: name,
         chosen_col: r.column,
-        score: r.score,
-        nodes_visited: r.nodes_visited,
-        cutoffs: r.cutoffs || 0,
-        cache_hits: r.cache_hits || 0,
-        hit_rate_pct: r.hit_rate_pct || 0,
-        time_ms: r.compute_time_ms,
+        column: r.column,
+        score: r.score ?? 0,
+        nodes_visited: r.nodes_visited ?? 0,
+        cutoffs: r.cutoffs ?? 0,
+        cache_hits: r.cache_hits ?? 0,
+        cache_misses: r.cache_misses ?? 0,
+        hit_rate_pct: r.hit_rate_pct ?? 0,
+        execution_time_ms: r.compute_time_ms ?? 0,
+        time_ms: r.compute_time_ms ?? 0,
+        node_reduction_pct: workRed,
         work_reduction_pct: workRed,
+        speedup_ratio: speedup,
         speedup: speedup,
-        memory_kb: r.tt_memory_kb || 0,
+        memory_kb: r.tt_memory_kb ?? 0,
       };
     }
 
@@ -655,10 +661,10 @@
       depth: depth,
       repeats: repeats,
       results: [
-        buildRow("Minimax (Baseline)", resMinimax),
-        buildRow("Alpha-Beta (Natural)", resAbNatural),
-        buildRow("Alpha-Beta (Move Ordered)", resAbOrdered),
-        buildRow("Alpha-Beta + Transposition Table", resAbTT),
+        buildRow("Minimax (Baseline)", "minimax", resMinimax),
+        buildRow("Alpha-Beta (Natural)", "alphabeta_natural", resAbNatural),
+        buildRow("Alpha-Beta (Move Ordered)", "alphabeta_ordered", resAbOrdered),
+        buildRow("Alpha-Beta + Transposition Table", "alphabeta_tt", resAbTT),
       ],
     };
   }

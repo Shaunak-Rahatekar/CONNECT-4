@@ -156,10 +156,26 @@
 
         const scalingData = {
           depths: scalingDepths,
-          minimax: { nodes: mmNodes, times: mmTimes },
-          alphabeta_natural: { nodes: abNoNodes, times: abNoTimes, cutoffs: abNoCutoffs },
-          alphabeta_ordered: { nodes: abOrdNodes, times: abOrdTimes, cutoffs: abOrdCutoffs },
-          alphabeta_tt: { nodes: abTTNodes, times: abTTTimes, cutoffs: abTTCutoffs, memory: abTTMem },
+          time_ms: {
+            minimax: mmTimes,
+            alphabeta_natural: abNoTimes,
+            alphabeta_ordered: abOrdTimes,
+            alphabeta_tt: abTTTimes,
+          },
+          nodes: {
+            minimax: mmNodes,
+            alphabeta_natural: abNoNodes,
+            alphabeta_ordered: abOrdNodes,
+            alphabeta_tt: abTTNodes,
+          },
+          cutoffs: {
+            alphabeta_natural: abNoCutoffs,
+            alphabeta_ordered: abOrdCutoffs,
+            alphabeta_tt: abTTCutoffs,
+          },
+          memory_kb: {
+            alphabeta_tt: abTTMem,
+          },
         };
 
         renderTable(tableRes.results);
@@ -223,7 +239,7 @@
       const colVal = row.column !== undefined && row.column !== null ? row.column : row.chosen_col;
       const colText = colVal !== undefined && colVal !== null ? `Col ${colVal + 1}` : '—';
       const cutoffsText = (row.cutoffs !== null && row.cutoffs !== undefined && !isBaseline)
-        ? row.cutoffs.toLocaleString()
+        ? Number(row.cutoffs).toLocaleString()
         : (isBaseline ? '—' : '0');
       
       let cacheText = '—';
@@ -231,18 +247,20 @@
         ? row.hit_rate_pct
         : (row.cache_hit_rate !== undefined ? row.cache_hit_rate * 100 : null);
       if (row.cache_hits !== null && row.cache_hits !== undefined && (row.cache_hits > 0 || row.cache_misses > 0)) {
-        cacheText = `${row.cache_hits} (${hitRate !== null ? hitRate.toFixed(1) : '0.0'}%)`;
+        cacheText = `${row.cache_hits} (${hitRate !== null ? Number(hitRate).toFixed(1) : '0.0'}%)`;
       }
 
+      const redVal = row.node_reduction_pct !== undefined ? row.node_reduction_pct : (row.work_reduction_pct !== undefined ? row.work_reduction_pct : null);
       let redClass = 'reduction-neutral';
       let redText = 'Baseline (0%)';
-      if (!isBaseline && row.node_reduction_pct !== null && row.node_reduction_pct !== undefined) {
-        if (row.node_reduction_pct > 0) {
+      if (!isBaseline && redVal !== null && redVal !== undefined) {
+        const redNum = Number(redVal) || 0;
+        if (redNum > 0) {
           redClass = 'reduction-positive';
-          redText = `-${row.node_reduction_pct.toFixed(1)}%`;
-        } else if (row.node_reduction_pct < 0) {
+          redText = `-${redNum.toFixed(1)}%`;
+        } else if (redNum < 0) {
           redClass = 'reduction-negative';
-          redText = `+${Math.abs(row.node_reduction_pct).toFixed(1)}%`;
+          redText = `+${Math.abs(redNum).toFixed(1)}%`;
         } else {
           redText = '0.0%';
         }
@@ -252,33 +270,44 @@
       let speedClass = 'speedup-neutral';
       let speedText = '1.0×';
       if (!isBaseline && speedVal !== null && speedVal !== undefined) {
-        if (speedVal > 1.05) {
+        const speedNum = Number(speedVal) || 1;
+        if (speedNum > 1.05) {
           speedClass = 'speedup-positive';
-          speedText = `${speedVal.toFixed(2)}×`;
-        } else if (speedVal < 0.95) {
+          speedText = `${speedNum.toFixed(2)}×`;
+        } else if (speedNum < 0.95) {
           speedClass = 'speedup-negative';
-          speedText = `${speedVal.toFixed(2)}×`;
+          speedText = `${speedNum.toFixed(2)}×`;
         } else {
-          speedText = `${speedVal.toFixed(2)}×`;
+          speedText = `${speedNum.toFixed(2)}×`;
         }
       }
 
       const memText = row.memory_kb !== null && row.memory_kb !== undefined
-        ? (row.memory_kb > 0 ? `~${row.memory_kb.toFixed(1)} KB` : '0 KB')
+        ? (Number(row.memory_kb) > 0 ? `~${Number(row.memory_kb).toFixed(1)} KB` : '0 KB')
         : '—';
+
+      const scoreNum = (row.score !== undefined && row.score !== null) ? Number(row.score) : 0;
+      const scoreText = Number.isFinite(scoreNum) ? scoreNum.toFixed(1) : '0.0';
+
+      const execTime = row.execution_time_ms !== undefined ? row.execution_time_ms : (row.time_ms !== undefined ? row.time_ms : (row.compute_time_ms || 0));
+      const timeNum = Number(execTime) || 0;
+      const timeText = `${timeNum.toFixed(2)} ms`;
+
+      const nodesNum = (row.nodes_visited !== undefined && row.nodes_visited !== null) ? Number(row.nodes_visited) : 0;
+      const nodesText = nodesNum.toLocaleString();
 
       html += `
         <tr class="bench-row ${isBaseline ? 'bench-row-baseline' : ''}">
           <td class="bench-cfg-name">
-            <span class="cfg-dot cfg-dot-${row.algorithm_key}"></span>
+            <span class="cfg-dot cfg-dot-${row.algorithm_key || 'minimax'}"></span>
             <strong>${row.name}</strong>
           </td>
           <td><span class="badge badge-move">${colText}</span></td>
-          <td class="font-mono">${row.score.toFixed(1)}</td>
-          <td class="font-mono"><strong>${row.nodes_visited.toLocaleString()}</strong></td>
+          <td class="font-mono">${scoreText}</td>
+          <td class="font-mono"><strong>${nodesText}</strong></td>
           <td class="font-mono">${cutoffsText}</td>
           <td class="font-mono">${cacheText}</td>
-          <td class="font-mono">${row.execution_time_ms.toFixed(2)} ms</td>
+          <td class="font-mono">${timeText}</td>
           <td><span class="badge ${redClass}">${redText}</span></td>
           <td><span class="badge ${speedClass}">${speedText}</span></td>
           <td class="font-mono text-muted">${memText}</td>
